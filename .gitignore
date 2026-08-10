@@ -1,0 +1,13 @@
+node_modules/
+.next/
+coverage/
+.env*
+!.env.example
+*.tsbuildinfo
+npm-debug.log*
+
+# Local project guidance and architecture references
+AGENTS.md
+ARCHITECTURE.md
+CommuteLens_CUTC2026_Final_Demo_Architecture_Fixed.pdf
+TEAM_TASKS.md

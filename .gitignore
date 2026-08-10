@@ -3,6 +3,8 @@ node_modules/
 coverage/
 .env*
 !.env.example
+!.env.local
+.env.local
 *.tsbuildinfo
 npm-debug.log*
 
@@ -11,3 +13,4 @@ AGENTS.md
 ARCHITECTURE.md
 CommuteLens_CUTC2026_Final_Demo_Architecture_Fixed.pdf
 TEAM_TASKS.md
+TRANSIT_INTEGRATION.md

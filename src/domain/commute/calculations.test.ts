@@ -18,4 +18,9 @@ describe("calculateCommute", () => {
   it("is deterministic", () => {
     expect(calculateCommute(DEMO_ROUTES[0], 5)).toEqual(calculateCommute(DEMO_ROUTES[0], 5));
   });
+
+  it("rejects an invalid onsite frequency", () => {
+    expect(() => calculateCommute(DEMO_ROUTES[0], 6)).toThrow(RangeError);
+    expect(() => calculateCommute(DEMO_ROUTES[0], 2.5)).toThrow(RangeError);
+  });
 });

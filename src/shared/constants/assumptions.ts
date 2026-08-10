@@ -1,6 +1,7 @@
 export const COMMUTE_ASSUMPTIONS = Object.freeze({
   averageWeeksPerMonth: 52 / 12,
   workingWeeksPerYear: 52,
+  workingDaysPerWeek: 5,
 });
 
 // A disclosed MVP estimate, not tax or payroll advice. Replace with a versioned

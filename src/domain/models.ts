@@ -33,14 +33,7 @@ export interface DataSource {
 }
 
 export type TransportMode =
-  | "walk"
-  | "jeepney"
-  | "bus"
-  | "rail"
-  | "uv-express"
-  | "p2p"
-  | "tricycle"
-  | "other";
+  "walk" | "jeepney" | "bus" | "rail" | "uv-express" | "p2p" | "tricycle" | "other";
 
 export interface CommuteSegment {
   mode: TransportMode;
@@ -63,12 +56,16 @@ export interface CommuteRoute {
 
 export interface CommuteAnalysis {
   route: CommuteRoute | null;
+  segments: CommuteSegment[];
+  oneWayFare: number;
   dailyFare: number;
   monthlyFare: number;
   annualFare: number;
+  oneWayMinutes: number;
   dailyMinutes: number;
   monthlyMinutes: number;
   annualMinutes: number;
+  officeDaysPerMonth: number;
 }
 
 export interface JobRealityAnalysis {
@@ -78,6 +75,28 @@ export interface JobRealityAnalysis {
   incomeAfterCommute: number;
   commuteBurdenPercentage: number;
   monthlyCommuteHours: number;
+  monthlyWorkHours: number;
+  effectiveMonthlyHours: number;
   effectiveHourlyValue: number;
   sources: DataSource[];
+}
+
+export interface ComparedMetric {
+  jobA: number;
+  jobB: number;
+  difference: number;
+}
+
+export interface JobRealityComparison {
+  jobA: JobRealityAnalysis;
+  jobB: JobRealityAnalysis;
+  metrics: {
+    monthlySalary: ComparedMetric;
+    estimatedTakeHomePay: ComparedMetric;
+    monthlyCommuteCost: ComparedMetric;
+    monthlyCommuteHours: ComparedMetric;
+    incomeAfterCommute: ComparedMetric;
+    commuteBurdenPercentage: ComparedMetric;
+    effectiveHourlyValue: ComparedMetric;
+  };
 }

@@ -1,0 +1,8 @@
+.next/
+node_modules/
+coverage/
+package-lock.json
+AGENTS.md
+ARCHITECTURE.md
+CommuteLens_CUTC2026_Final_Demo_Architecture_Fixed.pdf
+TEAM_TASKS.md

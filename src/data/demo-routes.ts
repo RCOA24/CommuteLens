@@ -16,8 +16,22 @@ export const DEMO_ROUTES: CommuteRoute[] = [
   {
     id: "demo-cubao-bgc",
     segments: [
-      { mode: "rail", origin: DEMO_LOCATIONS.cubao, destination: DEMO_LOCATIONS.ayalaMrt, estimatedFare: 28, estimatedDurationMinutes: 35, source: DEMO_SOURCE },
-      { mode: "bus", origin: DEMO_LOCATIONS.ayalaMrt, destination: DEMO_LOCATIONS.bgc, estimatedFare: 15, estimatedDurationMinutes: 25, source: DEMO_SOURCE },
+      {
+        mode: "rail",
+        origin: DEMO_LOCATIONS.cubao,
+        destination: DEMO_LOCATIONS.ayalaMrt,
+        estimatedFare: 28,
+        estimatedDurationMinutes: 35,
+        source: DEMO_SOURCE,
+      },
+      {
+        mode: "bus",
+        origin: DEMO_LOCATIONS.ayalaMrt,
+        destination: DEMO_LOCATIONS.bgc,
+        estimatedFare: 15,
+        estimatedDurationMinutes: 25,
+        source: DEMO_SOURCE,
+      },
     ],
     oneWayFare: 43,
     oneWayDurationMinutes: 60,

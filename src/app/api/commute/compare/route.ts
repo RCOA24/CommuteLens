@@ -1,4 +1,4 @@
-import { AnalyzeJobOfferUseCase } from "@/application/analyze-job-offer/use-case";
+import { CompareJobOffersUseCase } from "@/application/compare-job-offers/use-case";
 import { MockTransitProvider } from "@/providers/transit/mock-transit.provider";
 
 export async function POST(request: Request): Promise<Response> {
@@ -15,8 +15,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const useCase = new AnalyzeJobOfferUseCase(new MockTransitProvider());
-  const result = await useCase.execute(body);
+  const result = await new CompareJobOffersUseCase(new MockTransitProvider()).execute(body);
   return Response.json(result, {
     status: result.success ? 200 : result.error.code === "INVALID_INPUT" ? 400 : 422,
   });

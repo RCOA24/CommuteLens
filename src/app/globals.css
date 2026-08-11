@@ -489,7 +489,7 @@
 @media print {
   @page {
     size: 80mm auto;
-    margin: 0;
+    margin: 2mm 0;
   }
 
   body {
@@ -507,7 +507,12 @@
     margin: 0 auto;
     box-shadow: none;
     font-size: 0.7rem;
-    page-break-inside: avoid;
+    /*
+     * Do NOT use page-break-inside: avoid here. A multi-segment route with
+     * a long job title can easily exceed one page height, and avoid causes
+     * browsers to clip the overflow instead of flowing to the next page.
+     */
+    break-inside: auto;
   }
 
   .ticket-body {
@@ -538,11 +543,47 @@
     border-width: 1px;
   }
 
-  /* Ensure long text wraps and never overflows */
+  /*
+   * Force backgrounds and colors to print. Browsers strip backgrounds by
+   * default; this ensures the route dots, connector lines, burden badge,
+   * provenance badge, and totals background all render on paper.
+   */
+  .ticket,
+  .ticket * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /*
+   * Ensure long text wraps and never overflows or truncates.
+   * Covers: job title, company name, station labels, fare rows,
+   * destination, provenance sources.
+   */
   .ticket-value,
   .ticket-fare-row,
-  .route-stop-station {
+  .ticket-fare-row span,
+  .ticket-total-row,
+  .ticket-disclaimer,
+  .route-stop-station,
+  .route-stop-content,
+  .ticket-field {
     overflow-wrap: anywhere;
     word-break: break-word;
+  }
+
+  /* Prevent the header from being orphaned at page bottom */
+  .ticket-header {
+    break-after: avoid;
+  }
+
+  /* Keep the totals stub together if possible */
+  .ticket-totals {
+    break-inside: avoid;
+  }
+
+  /* Keep verdict + provenance together */
+  .ticket-verdict,
+  .ticket-footer {
+    break-inside: avoid;
   }
 }

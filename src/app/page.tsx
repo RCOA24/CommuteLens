@@ -4,12 +4,12 @@ export default function Home() {
   return (
     <main className="grid min-h-screen grid-cols-1 items-center gap-[clamp(2rem,6vw,7rem)] p-[clamp(2rem,6vw,6rem)] wide:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] print:block print:p-0">
       <JobOfferAnalyzer>
-        <h1 className="mt-[0.6rem] mb-[1.2rem] text-[clamp(2.8rem,6vw,6.4rem)] leading-[0.94] tracking-[-0.06em]">
+        <h1 className="mt-[0.6rem] mb-[1.2rem] font-headline text-[clamp(2.8rem,6vw,5.6rem)] leading-[0.94] tracking-[-0.05em]">
           Your salary says one number.
           <br />
-          Your commute tells the rest.
+          Your <span className="font-highlight italic">commute</span> tells the rest.
         </h1>
-        <p className="max-w-[570px] text-[clamp(1rem,2vw,1.3rem)] leading-[1.6]">
+        <p className="max-w-[570px] font-body text-[clamp(1rem,2vw,1.3rem)] leading-[1.6] text-muted">
           See the money and unpaid time a job commute takes before you decide.
         </p>
       </JobOfferAnalyzer>

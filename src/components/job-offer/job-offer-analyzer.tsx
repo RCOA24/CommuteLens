@@ -4,17 +4,16 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { analyzeJobOfferSchema } from "@/application/analyze-job-offer/schema";
 import type { AnalyzeJobOfferResult } from "@/application/analyze-job-offer/use-case";
 import { AnalyzeIcon, PillButton, PrinterIcon, ResetIcon } from "@/components/ui/pill-button";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { LocationSearch } from "@/components/location/location-search";
 import { JobRealityReceipt } from "@/components/receipt/job-reality-receipt";
 import {
   DEMO_OFFICES,
-  DEMO_ORIGINS,
   PRIMARY_DEMO_SCENARIO,
   type DemoOfficeKey,
-  type DemoOriginKey,
 } from "@/data/demo";
 import type { JobRealityAnalysis, Location, WorkArrangement } from "@/domain/models";
 
-const ORIGIN_ENTRIES = Object.entries(DEMO_ORIGINS) as [DemoOriginKey, Location][];
 const OFFICE_ENTRIES = Object.entries(DEMO_OFFICES) as [DemoOfficeKey, Location][];
 
 const WORK_ARRANGEMENTS: readonly { value: WorkArrangement; label: string }[] = [
@@ -58,8 +57,6 @@ function messageFor(path: string, issue: { code: string; message: string }): str
 
 const fieldClass =
   "h-9 w-full rounded-lg border border-ink/15 bg-white px-3 py-1.5 text-sm leading-tight text-ink placeholder:text-ink/35 focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent disabled:opacity-40";
-const selectClass =
-  "h-9 w-full cursor-pointer rounded-lg border border-ink/15 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23536565%22%20d%3D%22M2%204l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat py-1.5 pr-8 pl-3 text-sm leading-tight text-ink appearance-none focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent disabled:opacity-40";
 const labelClass = "mb-1.5 block text-[0.68rem] font-bold tracking-[0.14em] text-muted uppercase";
 const errorClass = "mt-1.5 block text-[0.78rem] font-semibold text-accent";
 
@@ -79,7 +76,7 @@ interface JobOfferAnalyzerProps {
  */
 export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
   const formId = useId();
-  const [originKey, setOriginKey] = useState<DemoOriginKey>("cubao");
+  const [origin, setOrigin] = useState<Location | null>(SEED.origin);
   const [officeKey, setOfficeKey] = useState<DemoOfficeKey>("bgc");
   const [title, setTitle] = useState(SEED.jobOffer.title);
   const [company, setCompany] = useState(SEED.jobOffer.company);
@@ -115,7 +112,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
     event.preventDefault();
 
     const payload = {
-      origin: DEMO_ORIGINS[originKey],
+      origin: origin ?? SEED.origin,
       jobOffer: {
         id: `job-${crypto.randomUUID()}`,
         title,
@@ -197,40 +194,24 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             Fill in the job offer details and where you would commute from. We handle the math.
           </p>
           <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label className={labelClass} htmlFor={`${formId}-origin`}>
-                WHERE YOU LIVE
-              </label>
-              <select
-                id={`${formId}-origin`}
-                className={selectClass}
-                value={originKey}
-                onChange={(event) => setOriginKey(event.target.value as DemoOriginKey)}
-              >
-                {ORIGIN_ENTRIES.map(([key, location]) => (
-                  <option key={key} value={key}>
-                    {location.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass} htmlFor={`${formId}-office`}>
-                OFFICE LOCATION
-              </label>
-              <select
-                id={`${formId}-office`}
-                className={selectClass}
-                value={officeKey}
-                onChange={(event) => setOfficeKey(event.target.value as DemoOfficeKey)}
-              >
-                {OFFICE_ENTRIES.map(([key, location]) => (
-                  <option key={key} value={key}>
-                    {location.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LocationSearch
+              value={origin}
+              onChange={setOrigin}
+              label="WHERE YOU LIVE"
+              placeholder="Search a location..."
+              error={fieldErrors["origin"] ?? null}
+              idPrefix={`${formId}-origin`}
+            />
+            <CustomSelect
+              id={`${formId}-office`}
+              label="OFFICE LOCATION"
+              options={OFFICE_ENTRIES.map(([key, location]) => ({
+                value: key,
+                label: location.label,
+              }))}
+              value={officeKey}
+              onChange={(val) => setOfficeKey(val as DemoOfficeKey)}
+            />
             <div>
               <label className={labelClass} htmlFor={`${formId}-title`}>
                 JOB TITLE
@@ -277,23 +258,13 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
               />
               {salaryError.node}
             </div>
-            <div>
-              <label className={labelClass} htmlFor={`${formId}-arrangement`}>
-                WORK ARRANGEMENT
-              </label>
-              <select
-                id={`${formId}-arrangement`}
-                className={selectClass}
-                value={workArrangement}
-                onChange={(event) => handleArrangementChange(event.target.value as WorkArrangement)}
-              >
-                {WORK_ARRANGEMENTS.map((arrangement) => (
-                  <option key={arrangement.value} value={arrangement.value}>
-                    {arrangement.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomSelect
+              id={`${formId}-arrangement`}
+              label="WORK ARRANGEMENT"
+              options={WORK_ARRANGEMENTS.map((a) => ({ value: a.value, label: a.label }))}
+              value={workArrangement}
+              onChange={(val) => handleArrangementChange(val as WorkArrangement)}
+            />
             <div>
               <label className={labelClass} htmlFor={`${formId}-onsite-days`}>
                 ONSITE DAYS / WEEK

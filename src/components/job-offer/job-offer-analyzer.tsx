@@ -3,6 +3,7 @@
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { analyzeJobOfferSchema } from "@/application/analyze-job-offer/schema";
 import type { AnalyzeJobOfferResult } from "@/application/analyze-job-offer/use-case";
+import { AnalyzeIcon, PillButton, PrinterIcon, ResetIcon } from "@/components/ui/pill-button";
 import { JobRealityReceipt } from "@/components/receipt/job-reality-receipt";
 import {
   DEMO_OFFICES,
@@ -56,9 +57,11 @@ function messageFor(path: string, issue: { code: string; message: string }): str
 }
 
 const fieldClass =
-  "min-h-11 w-full border border-ink/25 bg-paper px-3 py-2 text-base focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent disabled:opacity-50";
-const labelClass = "block text-[0.78rem] font-extrabold tracking-[0.12em] text-muted uppercase";
-const errorClass = "mt-1 block text-[0.8rem] font-bold text-accent";
+  "h-9 w-full rounded-lg border border-ink/15 bg-white px-3 py-1.5 text-sm leading-tight text-ink placeholder:text-ink/35 focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent disabled:opacity-40";
+const selectClass =
+  "h-9 w-full cursor-pointer rounded-lg border border-ink/15 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23536565%22%20d%3D%22M2%204l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat py-1.5 pr-8 pl-3 text-sm leading-tight text-ink appearance-none focus:border-accent focus:outline-2 focus:outline-offset-1 focus:outline-accent disabled:opacity-40";
+const labelClass = "mb-1.5 block text-[0.68rem] font-bold tracking-[0.14em] text-muted uppercase";
+const errorClass = "mt-1.5 block text-[0.78rem] font-semibold text-accent";
 
 interface JobOfferAnalyzerProps {
   /** Server-rendered hero markup, slotted above the form. */
@@ -93,7 +96,11 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [requestError, setRequestError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<JobRealityAnalysis | null>(null);
+  // Stamped together so the receipt's issue date can never drift from its analysis.
+  const [receipt, setReceipt] = useState<{
+    analysis: JobRealityAnalysis;
+    issuedAt: Date;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isRemote = workArrangement === "remote";
@@ -132,7 +139,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
       }
       setFieldErrors(errors);
       setRequestError(null);
-      setAnalysis(null);
+      setReceipt(null);
       return;
     }
 
@@ -149,13 +156,13 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
       const result = (await response.json()) as AnalyzeJobOfferResult;
 
       if (result.success) {
-        setAnalysis(result.data);
+        setReceipt({ analysis: result.data, issuedAt: new Date() });
       } else {
-        setAnalysis(null);
+        setReceipt(null);
         setRequestError(result.error.message);
       }
     } catch {
-      setAnalysis(null);
+      setReceipt(null);
       setRequestError("Could not reach the analyzer. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
@@ -185,15 +192,18 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
     <>
       <section className="max-w-[760px] print:hidden">
         {children}
-        <form onSubmit={handleSubmit} className="mt-10 grid gap-5" noValidate>
+        <form onSubmit={handleSubmit} className="mt-8 grid gap-6" noValidate>
+          <p className="text-[0.85rem] leading-[1.5] text-muted">
+            Fill in the job offer details and where you would commute from. We handle the math.
+          </p>
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label className={labelClass} htmlFor={`${formId}-origin`}>
-                Where you live
+                WHERE YOU LIVE
               </label>
               <select
                 id={`${formId}-origin`}
-                className={fieldClass}
+                className={selectClass}
                 value={originKey}
                 onChange={(event) => setOriginKey(event.target.value as DemoOriginKey)}
               >
@@ -206,11 +216,11 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-office`}>
-                Office location
+                OFFICE LOCATION
               </label>
               <select
                 id={`${formId}-office`}
-                className={fieldClass}
+                className={selectClass}
                 value={officeKey}
                 onChange={(event) => setOfficeKey(event.target.value as DemoOfficeKey)}
               >
@@ -223,11 +233,12 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-title`}>
-                Job title
+                JOB TITLE
               </label>
               <input
                 id={`${formId}-title`}
                 className={fieldClass}
+                placeholder="e.g. Software Developer"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 {...titleError.props}
@@ -236,11 +247,12 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-company`}>
-                Company
+                COMPANY
               </label>
               <input
                 id={`${formId}-company`}
                 className={fieldClass}
+                placeholder="e.g. Acme Corp"
                 value={company}
                 onChange={(event) => setCompany(event.target.value)}
                 {...companyError.props}
@@ -249,7 +261,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-salary`}>
-                Monthly salary (₱)
+                MONTHLY SALARY (₱)
               </label>
               <input
                 id={`${formId}-salary`}
@@ -258,6 +270,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
                 inputMode="numeric"
                 min={1}
                 step={1000}
+                placeholder="45000"
                 value={monthlySalary}
                 onChange={(event) => setMonthlySalary(event.target.value)}
                 {...salaryError.props}
@@ -266,11 +279,11 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-arrangement`}>
-                Work arrangement
+                WORK ARRANGEMENT
               </label>
               <select
                 id={`${formId}-arrangement`}
-                className={fieldClass}
+                className={selectClass}
                 value={workArrangement}
                 onChange={(event) => handleArrangementChange(event.target.value as WorkArrangement)}
               >
@@ -283,7 +296,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-onsite-days`}>
-                Onsite days per week
+                ONSITE DAYS / WEEK
               </label>
               <input
                 id={`${formId}-onsite-days`}
@@ -293,6 +306,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
                 min={0}
                 max={5}
                 step={1}
+                placeholder="3"
                 value={onsiteDaysPerWeek}
                 disabled={isRemote}
                 onChange={(event) => setOnsiteDaysPerWeek(event.target.value)}
@@ -302,7 +316,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
             </div>
             <div>
               <label className={labelClass} htmlFor={`${formId}-hours`}>
-                Working hours per day
+                HOURS / DAY
               </label>
               <input
                 id={`${formId}-hours`}
@@ -312,6 +326,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
                 min={0.5}
                 max={24}
                 step={0.5}
+                placeholder="8"
                 value={workingHoursPerDay}
                 onChange={(event) => setWorkingHoursPerDay(event.target.value)}
                 {...hoursError.props}
@@ -319,19 +334,33 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
               {hoursError.node}
             </div>
           </div>
-          <button
-            type="submit"
-            className="min-h-11 justify-self-start bg-accent px-8 py-3 font-black tracking-[0.08em] text-white uppercase disabled:opacity-60"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Analyzing…" : "Show the real cost"}
-          </button>
+          <div className="flex justify-end">
+            <PillButton
+              type="submit"
+              variant="primary"
+              size="lg"
+              icon={<AnalyzeIcon />}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Analyzing…" : "Show the real cost"}
+            </PillButton>
+          </div>
         </form>
       </section>
 
       <div aria-live="polite">
-        {analysis ? (
-          <JobRealityReceipt analysis={analysis} />
+        {receipt ? (
+          <div>
+            <JobRealityReceipt analysis={receipt.analysis} issuedAt={receipt.issuedAt} />
+            <div className="mx-auto mt-5 flex max-w-[380px] flex-wrap gap-3 wide:mx-0 wide:max-w-none print:hidden">
+              <PillButton variant="secondary" icon={<PrinterIcon />} onClick={() => window.print()}>
+                Print Your Receipt
+              </PillButton>
+              <PillButton variant="ghost" icon={<ResetIcon />} onClick={() => setReceipt(null)}>
+                New Analysis
+              </PillButton>
+            </div>
+          </div>
         ) : (
           <section
             className="mx-auto w-full max-w-[440px] border border-dashed border-ink/40 p-8 text-muted wide:mx-0 wide:max-w-none print:hidden"

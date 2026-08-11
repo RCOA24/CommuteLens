@@ -8,6 +8,23 @@ Commute Lens is a Philippines-first decision-support tool that helps people unde
 
 The app combines salary, estimated take-home pay, commute cost, commute time, office attendance, and commute burden into a transparent **Commute Reality Receipt**.
 
+## The real-world problem
+
+For many Filipino workers, the salary shown in a job offer is only part of the financial reality. A role that pays more may also require long travel across Metro Manila, multiple transfers, expensive daily fares, and more frequent office attendance. These costs are often difficult to compare before accepting an offer.
+
+Commute Lens solves this problem by making the hidden cost of commuting visible before a job decision is made. It translates a job offer into practical measures:
+
+- how much income remains after monthly transportation costs;
+- how many hours each month are spent traveling;
+- what percentage of estimated take-home pay goes to commuting;
+- how two job offers compare after their commute realities are included.
+
+This helps job seekers evaluate opportunity cost in terms they can understand—not only gross salary, but also money, time, and daily burden. Commute Lens does not choose a job for the user. It provides transparent, explainable calculations so the user can make a better-informed decision.
+
+### Why this matters
+
+The cost of a commute is not limited to the fare. Repeated travel expenses reduce disposable income, while unpaid travel time reduces the time available for family, rest, and personal responsibilities. By showing these trade-offs together, Commute Lens supports a more realistic view of job value, especially for workers navigating hybrid and onsite roles.
+
 ## What it does
 
 The current MVP foundation supports:
@@ -149,4 +166,3 @@ Do not commit `.env.local` or real credentials.
 ## Submission
 
 Commute Lens is being submitted to **CUTC: Transform Hackathon**. The project prioritizes a reliable, explainable decision loop: show what a job offer looks like after accounting for the commute required to reach it.
-

@@ -15,7 +15,19 @@
   --color-canvas: #edf7f1;
   --color-muted: #536565;
 
-  --font-sans: Arial, Helvetica, sans-serif;
+  /*
+   * Typography — three font families loaded via next/font.
+   * next/font injects CSS vars (--font-stack, --font-elms, --font-instrument)
+   * on <html>. We expose them as Tailwind utilities here.
+   *
+   * Stack Sans Headline → font-headline (h1, hero text)
+   * Elms Sans           → font-body (subheadline, content, UI)
+   * Instrument Serif    → font-highlight (keyword/accent text)
+   */
+  --font-headline: var(--font-stack), Arial, sans-serif;
+  --font-body: var(--font-elms), Arial, sans-serif;
+  --font-highlight: var(--font-instrument), Georgia, serif;
+  --font-sans: var(--font-elms), Arial, sans-serif;
 
   /*
    * The receipt column collapses under this width. 821px is the min-width
@@ -23,4 +35,514 @@
    * layout still switches at the same place.
    */
   --breakpoint-wide: 821px;
+}
+
+/* ==========================================================================
+   COMMUTE REALITY TICKET — Bus/Train Used Ticket Aesthetic
+   ========================================================================== */
+
+/*
+ * Design references:
+ * - Southeastern UK train ticket (perforated edges, monospace, field-value layout)
+ * - CSS ticket patterns (radial-gradient notches, dotted tear lines)
+ * - Thermal/receipt printer output (narrow width, dense type)
+ */
+
+.ticket {
+  --ticket-bg: #fffef7;
+  --ticket-ink: #1a2e2f;
+  --ticket-muted: #5e7272;
+  --ticket-accent: #d64520;
+  --ticket-border: #c5bfad;
+  --ticket-notch: var(--color-canvas, #edf7f1);
+  --ticket-font: "JetBrains Mono", "Fira Mono", "SF Mono", "Cascadia Mono", "Consolas", monospace;
+
+  font-family: var(--ticket-font);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ticket-ink);
+  background: var(--ticket-bg);
+  max-width: 380px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 32px rgba(26, 46, 47, 0.1);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 821px) {
+  .ticket {
+    margin: 0;
+    max-width: none;
+  }
+}
+
+/* --- Perforated edges (top & bottom) --- */
+.ticket-perforation {
+  display: block;
+  width: 100%;
+  height: 12px;
+  position: relative;
+}
+
+.ticket-perforation--top {
+  background: radial-gradient(circle 6px at 6px 12px, transparent 5px, var(--ticket-bg) 5.5px);
+  background-size: 12px 12px;
+  background-position: -6px 0;
+}
+
+.ticket-perforation--bottom {
+  background: radial-gradient(circle 6px at 6px 0, transparent 5px, var(--ticket-bg) 5.5px);
+  background-size: 12px 12px;
+  background-position: -6px 0;
+}
+
+/* --- Ticket body --- */
+.ticket-body {
+  padding: 1.2rem 1.4rem;
+  border-left: 2px solid var(--ticket-border);
+  border-right: 2px solid var(--ticket-border);
+  position: relative;
+}
+
+/* Worn edge effect — subtle vertical lines on left/right */
+.ticket-body::before,
+.ticket-body::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    var(--ticket-border) 3px,
+    var(--ticket-border) 4px
+  );
+  opacity: 0.4;
+}
+
+.ticket-body::before {
+  left: -2px;
+}
+.ticket-body::after {
+  right: -2px;
+}
+
+/* --- Header --- */
+.ticket-header {
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.ticket-logo {
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--ticket-accent);
+}
+
+.ticket-subtitle {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--ticket-muted);
+  margin-top: 0.1rem;
+}
+
+.ticket-number {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--ticket-muted);
+  margin-top: 0.3rem;
+  opacity: 0.7;
+}
+
+/* --- Dividers --- */
+.ticket-divider {
+  border: none;
+  border-top: 1px dashed var(--ticket-border);
+  margin: 0.8rem 0;
+}
+
+/* --- Tear line (notched) — the main stub separator --- */
+.ticket-tear {
+  position: relative;
+  margin: 1rem -1.4rem;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.ticket-tear::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px dashed var(--ticket-border);
+}
+
+.ticket-tear::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 20px;
+  background:
+    radial-gradient(circle 10px at 0 50%, var(--ticket-notch) 9px, transparent 9.5px),
+    radial-gradient(circle 10px at 100% 50%, var(--ticket-notch) 9px, transparent 9.5px);
+  pointer-events: none;
+}
+
+/* --- Sections --- */
+.ticket-section {
+  margin-bottom: 0.2rem;
+}
+
+.ticket-section-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--ticket-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* --- Fields (label + value stacked) --- */
+.ticket-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.45rem;
+}
+
+.ticket-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ticket-muted);
+  text-transform: uppercase;
+}
+
+.ticket-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ticket-ink);
+  margin-top: 0.05rem;
+}
+
+/* --- Row layout for side-by-side fields --- */
+.ticket-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.ticket-row .ticket-field {
+  flex: 1;
+}
+
+/* --- Fare grid --- */
+.ticket-fare-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.ticket-fare-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.15rem 0;
+}
+
+.ticket-fare-row span:last-child {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.ticket-fare-row--subtle {
+  color: var(--ticket-muted);
+  font-size: 0.72rem;
+}
+
+.ticket-fare-row--highlight {
+  font-weight: 800;
+  color: var(--ticket-accent);
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--ticket-border);
+}
+
+/* --- Totals section (below tear line) --- */
+.ticket-totals {
+  background: rgba(26, 46, 47, 0.03);
+  margin: 0 -1.4rem;
+  padding: 0.8rem 1.4rem;
+}
+
+.ticket-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.25rem 0;
+}
+
+.ticket-total-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ticket-muted);
+}
+
+.ticket-total-value {
+  font-size: 0.92rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--ticket-ink);
+}
+
+/* --- Verdict / burden badge --- */
+.ticket-verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.4rem 0;
+}
+
+.ticket-burden-badge {
+  min-width: 3.4rem;
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 900;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+}
+
+.ticket-burden-badge[data-level="very-low"] {
+  color: #16a34a;
+}
+.ticket-burden-badge[data-level="low"] {
+  color: #65a30d;
+}
+.ticket-burden-badge[data-level="moderate"] {
+  color: #ca8a04;
+}
+.ticket-burden-badge[data-level="high"] {
+  color: #dc2626;
+}
+.ticket-burden-badge[data-level="very-high"] {
+  color: #991b1b;
+}
+
+.ticket-burden-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-burden-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ticket-muted);
+}
+
+.ticket-burden-desc {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ticket-ink);
+}
+
+/* --- Footer --- */
+.ticket-footer {
+  text-align: center;
+  padding-top: 0.3rem;
+}
+
+.ticket-provenance-badge {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  padding: 0.2rem 0.6rem;
+  background: var(--ticket-ink);
+  color: var(--ticket-bg);
+  margin-bottom: 0.5rem;
+}
+
+.ticket-disclaimer {
+  font-size: 0.58rem;
+  line-height: 1.5;
+  color: var(--ticket-muted);
+  margin-bottom: 0.6rem;
+}
+
+.ticket-tagline {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ticket-ink);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   ROUTE TIMELINE — Vertical stops display
+   ========================================================================== */
+
+.route-timeline {
+  padding-left: 0.2rem;
+}
+
+.route-stop {
+  display: flex;
+  gap: 0.6rem;
+  position: relative;
+  min-height: 2.4rem;
+}
+
+.route-stop--final {
+  min-height: auto;
+}
+
+.route-stop-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 12px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.route-stop-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ticket-ink);
+  border: 2px solid var(--ticket-ink);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.route-stop-dot--end {
+  background: var(--ticket-accent);
+  border-color: var(--ticket-accent);
+  width: 10px;
+  height: 10px;
+}
+
+.route-stop-line {
+  flex: 1;
+  width: 2px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--ticket-border) 0px,
+    var(--ticket-border) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  margin: 2px 0;
+}
+
+.route-stop-content {
+  flex: 1;
+  padding-bottom: 0.4rem;
+}
+
+.route-stop-station {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ticket-ink);
+}
+
+.route-stop-transport {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  font-size: 0.65rem;
+  color: var(--ticket-muted);
+}
+
+.route-stop-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.route-stop-mode {
+  font-weight: 600;
+}
+
+.route-stop-detail {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   PRINT STYLES — 80mm thermal receipt
+   ========================================================================== */
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .print\:hidden,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .ticket {
+    max-width: 80mm;
+    width: 80mm;
+    margin: 0 auto;
+    box-shadow: none;
+    font-size: 0.7rem;
+    page-break-inside: avoid;
+  }
+
+  .ticket-body {
+    padding: 0.8rem 1rem;
+    border-left: 1px solid var(--ticket-border);
+    border-right: 1px solid var(--ticket-border);
+  }
+
+  .ticket-body::before,
+  .ticket-body::after {
+    display: none;
+  }
+
+  .ticket-totals {
+    margin: 0 -1rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .ticket-tear {
+    margin: 0.8rem -1rem;
+  }
+
+  .ticket-logo {
+    font-size: 0.9rem;
+  }
+
+  .ticket-burden-badge {
+    border-width: 1px;
+  }
+
+  /* Ensure long text wraps and never overflows */
+  .ticket-value,
+  .ticket-fare-row,
+  .route-stop-station {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }

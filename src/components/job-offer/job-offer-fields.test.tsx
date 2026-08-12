@@ -31,16 +31,11 @@ function renderFields(overrides: Partial<JobOfferFieldValues> = {}) {
 
 /**
  * Picks an option out of the custom listbox, which is not a native select.
- *
- * The trigger is located by the label it currently displays rather than by
- * accessible name, because CustomSelect's trigger has none — see the note in
- * the a11y test below. Options commit on mousedown, not click, so the event
- * has to match or nothing happens.
+ * Options commit on mousedown, not click, so the event has to match or
+ * nothing happens.
  */
-function selectOption(currentLabel: string, optionLabel: string) {
-  const trigger = screen.getByText(currentLabel).closest("button");
-  if (!trigger) throw new Error(`No select trigger currently showing "${currentLabel}"`);
-  fireEvent.click(trigger);
+function selectOption(fieldName: string, optionLabel: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: fieldName }));
   fireEvent.mouseDown(screen.getByRole("option", { name: optionLabel }));
 }
 
@@ -48,7 +43,7 @@ describe("JobOfferFields — remote coercion", () => {
   it("zeroes onsite days when the arrangement becomes remote", () => {
     const onChange = renderFields({ onsiteDaysPerWeek: "3" });
 
-    selectOption("Hybrid", "Fully remote");
+    selectOption("WORK ARRANGEMENT", "Fully remote");
 
     // The schema rejects a remote offer that still claims onsite days, so the
     // coercion has to travel with the arrangement change, not after it.
@@ -60,7 +55,7 @@ describe("JobOfferFields — remote coercion", () => {
   it("leaves onsite days alone when switching between onsite arrangements", () => {
     const onChange = renderFields({ workArrangement: "onsite", onsiteDaysPerWeek: "5" });
 
-    selectOption("Fully onsite", "Hybrid");
+    selectOption("WORK ARRANGEMENT", "Hybrid");
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ workArrangement: "hybrid", onsiteDaysPerWeek: "5" }),
@@ -91,6 +86,26 @@ describe("JobOfferFields — controlled input", () => {
     // A blank must reach validation as a blank. Coercing here would turn an
     // empty salary into 0 and let it pass as a real number.
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ monthlySalary: "" }));
+  });
+});
+
+describe("JobOfferFields — labelling", () => {
+  it("names both selects for assistive tech", () => {
+    renderFields();
+
+    // role="combobox" is name-from-author-only, so the trigger's visible text
+    // does not name it. Without an explicit association a screen reader
+    // announces a bare "combobox" and the field is unidentifiable.
+    expect(screen.getByRole("combobox", { name: "OFFICE LOCATION" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "WORK ARRANGEMENT" })).toBeTruthy();
+  });
+
+  it("names the listbox once it opens", () => {
+    renderFields();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "WORK ARRANGEMENT" }));
+
+    expect(screen.getByRole("listbox", { name: "WORK ARRANGEMENT" })).toBeTruthy();
   });
 });
 

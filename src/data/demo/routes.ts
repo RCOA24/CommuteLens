@@ -5,6 +5,7 @@ import type {
   Location,
   TransportMode,
 } from "@/domain/models";
+import { countTransitTransfers } from "@/domain/commute/route-metrics";
 import { DEMO_INTERCHANGES, DEMO_OFFICES, DEMO_ORIGINS } from "./locations";
 import { DEMO_SOURCE, ESTIMATED_SOURCE } from "./sources";
 
@@ -54,7 +55,7 @@ function buildRoute(
       (total, segment) => total + segment.estimatedDurationMinutes,
       0,
     ),
-    transfers: Math.max(0, segments.length - 1),
+    transfers: countTransitTransfers(segments),
     reliability,
     sources: [...sourceByName.values()],
   };

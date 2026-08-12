@@ -1,168 +1,120 @@
 # Commute Lens
 
-## CUTC: Transform Hackathon
+Commute Lens is a Philippines-first job decision tool built for the CUTC: Transform Hackathon. It shows how transport money and unpaid commute time change the lived value of a job offer.
 
-Commute Lens is a Philippines-first decision-support tool that helps people understand the real cost of accepting a job.
+## What users get
 
-> A higher salary does not automatically mean a better job.
+- Live BusMaps route timing when configured, with explicitly estimated fares.
+- Geoapify-powered address search, reverse geocoding, and an interactive route-stop map.
+- Estimated monthly take-home after transport.
+- Effective hourly value that counts both work and commute hours.
+- A 0–5 onsite-day scenario explorer, including remote baselines.
+- A real two-offer comparison with independent locations and work arrangements.
+- AI or deterministic explanations based only on validated calculated facts.
+- Visible Live, Estimated, or Curated Demo provenance.
 
-The app combines salary, estimated take-home pay, commute cost, commute time, office attendance, and commute burden into a transparent **Commute Reality Receipt**.
+Commute Lens does not choose a job, calculate official payroll deductions, or claim official/current fares.
 
-## The real-world problem
-
-For many Filipino workers, the salary shown in a job offer is only part of the financial reality. A role that pays more may also require long travel across Metro Manila, multiple transfers, expensive daily fares, and more frequent office attendance. These costs are often difficult to compare before accepting an offer.
-
-Commute Lens solves this problem by making the hidden cost of commuting visible before a job decision is made. It translates a job offer into practical measures:
-
-- how much income remains after monthly transportation costs;
-- how many hours each month are spent traveling;
-- what percentage of estimated take-home pay goes to commuting;
-- how two job offers compare after their commute realities are included.
-
-This helps job seekers evaluate opportunity cost in terms they can understand—not only gross salary, but also money, time, and daily burden. Commute Lens does not choose a job for the user. It provides transparent, explainable calculations so the user can make a better-informed decision.
-
-### Why this matters
-
-The cost of a commute is not limited to the fare. Repeated travel expenses reduce disposable income, while unpaid travel time reduces the time available for family, rest, and personal responsibilities. By showing these trade-offs together, Commute Lens supports a more realistic view of job value, especially for workers navigating hybrid and onsite roles.
-
-## What it does
-
-The current MVP foundation supports:
-
-- deterministic job-offer and commute analysis;
-- curated Metro Manila demo routes;
-- commute cost and time calculations;
-- estimated take-home pay and income after commute;
-- commute-burden calculations;
-- Job A vs Job B comparison logic;
-- geocoding provider boundaries with demo and Nominatim support;
-- AI-generated explanations that receive calculated facts only;
-- a receipt-style homepage result;
-- API validation and provider failure handling.
-
-The transit path currently uses curated demo data behind the `TransitProvider` abstraction. BusMaps and Mobility Database credentials are documented for future provider integrations, but are not yet consumed by the application.
-
-## Product flow
+## Calculation methodology
 
 ```text
-Job offer
-   ↓
-Origin + office location
-   ↓
-Transit option
-   ↓
-Deterministic impact engine
-   ↓
-Job reality analysis
-   ↓
-Comparison / explanation / receipt
+estimated take-home = gross monthly salary × user-selected take-home percentage
+monthly onsite days = onsite days/week × 52 ÷ 12
+monthly transport = estimated one-way fare × 2 × monthly onsite days
+monthly commute hours = one-way minutes × 2 × monthly onsite days ÷ 60
+cash after transport = estimated take-home − monthly transport
+effective hourly value = cash after transport ÷ (monthly work hours + commute hours)
+commute burden = monthly transport ÷ estimated take-home × 100
 ```
 
-## Tech stack
+The default take-home percentage is 90%, but it is an adjustable planning assumption—not a tax or payroll calculation. Commute time changes effective hourly value; it is not deducted from cash.
 
-- Next.js 16 with React 19
-- TypeScript
-- Zod runtime validation
-- Vitest
-- Tailwind CSS
-- Server-side provider adapters
+## Data and fallback behavior
 
-## Getting started
+- **Live route:** BusMaps supplies itinerary legs and timing. Because its route response does not quote fares, Commute Lens labels mode-based fare values as low-confidence estimates.
+- **Distance estimate:** used only for a genuine BusMaps coverage gap. It assumes straight-line distance, 18 km/h city travel, 12 minutes of access/waiting, and an estimated fare formula.
+- **Provider failure:** authentication, quota, timeout, and outage failures are returned explicitly and are not disguised as estimates.
+- **Curated demo:** enabled only with `TRANSIT_PROVIDER=demo` and/or `GEOCODING_PROVIDER=demo`.
+- **Mobility Database:** the adapter can inspect Philippine GTFS catalog metadata for future ingestion. That metadata is not attached to routes it did not produce.
 
-Requirements:
+Geoapify search runs only after the user submits a query. The interactive map gets Geoapify tiles through a same-origin server proxy, so the key is never sent to the browser; it shows BusMaps stop locations as a dashed overview—not fabricated road geometry.
 
-- Node.js 20.9 or newer
-- npm
+## Architecture
 
-Install dependencies:
-
-```bash
-npm install
+```text
+Next.js presentation
+        ↓
+API route handlers + validation + rate limits
+        ↓
+Application use cases
+        ↓
+Domain calculations and models
+        ↓
+Geoapify / BusMaps / OpenAI / demo provider adapters
 ```
 
-Copy the environment template:
+Route previews are validated and reused by analysis so the preview and receipt cannot independently reroute or consume quota twice. AI receives calculated facts only and falls back to deterministic wording if unavailable or rejected by guardrails.
+
+## Setup
+
+Requirements: Node.js 20.9+ and npm.
 
 ```powershell
+npm install
 Copy-Item .env.example .env.local
-```
-
-Then add the integrations you want to enable. Secrets must remain server-side.
-
-```env
-OPENAI_API_KEY=your_openai_key
-OPENAI_MODEL=your_model              # optional; the app has a default
-
-# Optional geocoding configuration
-GEOCODING_PROVIDER=demo              # use demo for offline rehearsal
-NOMINATIM_ENDPOINT=                  # optional
-NOMINATIM_USER_AGENT=CommuteLens/0.1 # recommended for Nominatim
-
-# Reserved for future integrations; currently not read by the app
-BUSMAPS_API_KEY=your_busmaps_key
-MOBILITY_DATABASE_REFRESH_TOKEN=your_mobility_database_token
-```
-
-Run the development server:
-
-```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## API endpoints
+For an offline rehearsal, set both provider selectors to `demo`. For a live run, configure only `GEOAPIFY_API_KEY`; it powers server-side geocoding and the same-origin map-tile proxy. Never expose Geoapify, BusMaps, Mobility, or OpenAI keys through `NEXT_PUBLIC_` variables.
 
-The current backend endpoints are:
+## API
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/commute/analyze` | Analyze one job offer and commute |
-| `POST /api/commute/compare` | Compare two job offers using the same engine |
-| `POST /api/explain` | Explain an analysis or comparison using OpenAI when configured, otherwise deterministic fallback text |
-| `GET /api/geocode/search` | Search for a location through the configured geocoder |
-| `GET /api/geocode/reverse` | Reverse-geocode coordinates |
+| Endpoint                        | Purpose                                                    |
+| ------------------------------- | ---------------------------------------------------------- |
+| `POST /api/commute/route`       | Discover and normalize a route preview                     |
+| `POST /api/commute/analyze`     | Analyze one offer, optionally reusing its route preview    |
+| `POST /api/commute/compare`     | Compare two independently configured offers                |
+| `POST /api/explain`             | Generate a guarded AI or deterministic explanation         |
+| `GET /api/geocode/search?q=...` | Explicit submitted place search                            |
+| `POST /api/geocode/reverse`     | Reverse-geocode browser coordinates without URL parameters |
 
-The API returns structured success/error responses and validates external input before it reaches domain calculations.
+Expensive endpoints have a best-effort in-memory rate limit. A multi-instance production deployment should replace it with a shared rate-limit store.
 
-## Architecture
+## Privacy and security
 
-The project separates presentation, application, domain, and infrastructure responsibilities:
+- Location is processed only for geocoding/routing and is not persisted by the app.
+- Coordinates are sent to Geoapify and BusMaps when those providers are enabled.
+- Browser geolocation requires an explicit click and reports low-accuracy results.
+- Reverse-geocoding coordinates are sent in a POST body rather than a logged query string.
+- Secrets remain server-side; `.env.local` is ignored by Git.
+- Security, referrer, content-type, framing, and permissions headers are configured.
 
-```text
-Presentation
-     ↓
-Application use cases
-     ↓
-Domain calculations and models
-     ↑
-Infrastructure providers
-```
-
-Authoritative calculations never depend on AI or external provider response formats. Demo transit values carry demo/estimated provenance and are not presented as live or official data.
-
-## AI behavior
-
-OpenAI is an enhancement layer. It explains already-calculated facts and does not determine fares, routes, durations, salaries, scores, or the recommended job.
-
-If `OPENAI_API_KEY` is missing or the provider is unavailable, the deterministic analysis remains available and the app uses a fallback explanation.
+A production privacy notice should name the selected hosting provider and its request-log retention policy.
 
 ## Verification
 
 ```bash
 npm run typecheck
-npm test
 npm run lint
+npm run format:check
+npm test
 npm run build
+npm audit
 ```
 
-The normal test suite does not require internet access or live third-party providers.
+Unit and route-handler tests run without requiring live third-party calls.
 
-## Demo and limitations
+## 60-second demo
 
-This is a hackathon MVP. Transit values are curated Metro Manila demo estimates, not live routing, official fare data, payroll advice, tax advice, or financial advice. The demo provider is intentionally isolated so it can later be replaced with a validated GTFS or other transit implementation.
+1. Search and select a real origin and office, then show the route-status badge.
+2. Enter an offer and explain the adjustable take-home assumption.
+3. Reveal cash after transport, effective hourly value, burden, and monthly commute hours.
+4. Move onsite days and state the marginal money/time impact.
+5. Compare a second real offer and show that cash and effective-hourly leaders may differ.
+6. Expand “How we calculated this” or request the guarded explanation.
 
-Do not commit `.env.local` or real credentials.
+## Current scope
 
-## Submission
-
-Commute Lens is being submitted to **CUTC: Transform Hackathon**. The project prioritizes a reliable, explainable decision loop: show what a job offer looks like after accounting for the commute required to reach it.
+This hackathon build intentionally excludes accounts, persistence, full Philippine payroll computation, authoritative fare feeds, and trip booking. The next data milestone is validated agency-specific GTFS/fare ingestion with coverage matching—not more presentation features.

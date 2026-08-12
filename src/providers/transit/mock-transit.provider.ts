@@ -1,4 +1,5 @@
 import { DEMO_ROUTES } from "@/data/demo";
+import { applyFareDiscount } from "@/domain/fare";
 import type { CommuteRoute, Coordinate } from "@/domain/models";
 import { TtlCache } from "@/shared/cache/ttl-cache";
 import { distanceKm } from "@/shared/geo/distance";
@@ -33,14 +34,21 @@ const DEFAULT_ORIGIN_RADIUS_KM = 6;
 const DEFAULT_DESTINATION_RADIUS_KM = 2;
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
 
-/** Coarse cache key. Rounding to ~1 km avoids caching precise coordinates. */
-function cacheKey(origin: Coordinate, destination: Coordinate): string {
+/**
+ * Coarse cache key. Rounding to ~1 km avoids caching precise coordinates.
+ *
+ * The fare class is part of the key because it changes the fares in the cached
+ * value. Without it, a regular lookup would be served back to an entitled
+ * passenger, quietly cancelling their discount.
+ */
+function cacheKey(origin: Coordinate, destination: Coordinate, discountClass: string): string {
   const round = (value: number) => value.toFixed(2);
   return [
     round(origin.latitude),
     round(origin.longitude),
     round(destination.latitude),
     round(destination.longitude),
+    discountClass,
   ].join("|");
 }
 
@@ -68,7 +76,7 @@ export class MockTransitProvider implements TransitProvider {
   async findRoutes(request: TransitRouteRequest): Promise<TransitRouteResult> {
     const requestOrigin = request.origin.coordinate;
     const requestDestination = request.destination.coordinate;
-    const key = cacheKey(requestOrigin, requestDestination);
+    const key = cacheKey(requestOrigin, requestDestination, request.discountClass ?? "regular");
 
     const cached = this.cache.get(key);
     if (cached) {
@@ -103,11 +111,14 @@ export class MockTransitProvider implements TransitProvider {
           left.route.id.localeCompare(right.route.id),
       );
 
+    const discountClass = request.discountClass ?? "regular";
     const normalized: CommuteRoute[] = [];
     for (const match of matches) {
       // Normalize at the provider boundary so malformed curated data never
-      // reaches the calculation engines.
-      const parsed = commuteRouteSchema.safeParse(match.route);
+      // reaches the calculation engines. The statutory fare entitlement is
+      // applied here too: honouring it is part of the provider contract, and the
+      // curated dataset is quoted at full fare.
+      const parsed = commuteRouteSchema.safeParse(applyFareDiscount(match.route, discountClass));
       if (parsed.success) normalized.push(parsed.data);
     }
 

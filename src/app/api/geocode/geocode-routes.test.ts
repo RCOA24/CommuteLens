@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Location } from "@/domain/models";
 import { resetGeocodingProvider } from "@/providers/geocoding";
-import { GET as reverse } from "./reverse/route";
+import { POST as reverse } from "./reverse/route";
 import { GET as search } from "./search/route";
 
 // Force the offline curated geocoder so these tests never touch the network.
@@ -35,11 +35,17 @@ describe("GET /api/geocode/search", () => {
   });
 });
 
-describe("GET /api/geocode/reverse", () => {
+function reverseRequest(body: unknown) {
+  return new Request("http://localhost/api/geocode/reverse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("POST /api/geocode/reverse", () => {
   it("resolves a coordinate to a labelled location", async () => {
-    const response = await reverse(
-      new Request("http://localhost/api/geocode/reverse?lat=14.62&lon=121.052"),
-    );
+    const response = await reverse(reverseRequest({ latitude: 14.62, longitude: 121.052 }));
     const body = (await response.json()) as { success: true; data: { location: Location | null } };
 
     expect(response.status).toBe(200);
@@ -47,25 +53,19 @@ describe("GET /api/geocode/reverse", () => {
   });
 
   it("returns null rather than guessing for an unknown area", async () => {
-    const response = await reverse(
-      new Request("http://localhost/api/geocode/reverse?lat=16.4023&lon=120.596"),
-    );
+    const response = await reverse(reverseRequest({ latitude: 16.4023, longitude: 120.596 }));
     const body = (await response.json()) as { success: true; data: { location: Location | null } };
 
     expect(body.data.location).toBeNull();
   });
 
   it("rejects an out-of-range coordinate", async () => {
-    const response = await reverse(
-      new Request("http://localhost/api/geocode/reverse?lat=999&lon=0"),
-    );
+    const response = await reverse(reverseRequest({ latitude: 999, longitude: 0 }));
     expect(response.status).toBe(400);
   });
 
   it("rejects a non-numeric coordinate", async () => {
-    const response = await reverse(
-      new Request("http://localhost/api/geocode/reverse?lat=abc&lon=121"),
-    );
+    const response = await reverse(reverseRequest({ latitude: "abc", longitude: 121 }));
     expect(response.status).toBe(400);
   });
 });

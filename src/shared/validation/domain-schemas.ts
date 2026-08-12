@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { countTransitTransfers } from "@/domain/commute/route-metrics";
 
 export const coordinateSchema = z.object({
   latitude: z.number().finite().min(-90).max(90),
@@ -59,7 +60,7 @@ export const commuteRouteSchema = z
         message: "One-way duration must equal the sum of segment durations.",
       });
     }
-    if (route.transfers !== Math.max(0, route.segments.length - 1)) {
+    if (route.transfers !== countTransitTransfers(route.segments)) {
       context.addIssue({
         code: "custom",
         path: ["transfers"],

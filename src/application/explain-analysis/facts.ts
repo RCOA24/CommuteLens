@@ -1,4 +1,5 @@
 import type { JobRealityAnalysis, JobRealityComparison } from "@/domain/models";
+import { describeFareDiscount } from "@/domain/fare";
 import { summarizeProvenance } from "@/data/demo";
 
 /**
@@ -43,6 +44,10 @@ export interface AnalysisFacts {
   transfers: number;
   modes: string[];
   provenanceLabels: string[];
+  /** Does not reveal a specific entitlement category to the AI provider. */
+  fareDiscountApplied: boolean;
+  /** Zero or the statutory discount percentage, safe for numeric guardrails. */
+  fareDiscountPercentage: number;
   takeHomeIsEstimated: true;
 }
 
@@ -64,6 +69,7 @@ export type ExplanationFacts = AnalysisFacts | ComparisonFacts;
 
 export function buildAnalysisFacts(analysis: JobRealityAnalysis): AnalysisFacts {
   const provenance = summarizeProvenance(analysis.sources);
+  const fareDiscount = describeFareDiscount(analysis.fareDiscountClass);
 
   return {
     kind: "analysis",
@@ -82,6 +88,8 @@ export function buildAnalysisFacts(analysis: JobRealityAnalysis): AnalysisFacts 
     transfers: analysis.commute.route?.transfers ?? 0,
     modes: [...new Set(analysis.commute.segments.map((segment) => segment.mode))],
     provenanceLabels: provenance?.descriptors.map((descriptor) => descriptor.label) ?? [],
+    fareDiscountApplied: fareDiscount.rate > 0,
+    fareDiscountPercentage: round(fareDiscount.rate * 100),
     takeHomeIsEstimated: true,
   };
 }
@@ -128,6 +136,7 @@ export function permittedNumbers(facts: ExplanationFacts): number[] {
     facts.onsiteDaysPerWeek,
     facts.oneWayMinutes,
     facts.transfers,
+    facts.fareDiscountPercentage,
     // Rounded restatements a writer would naturally reach for.
     Math.round(facts.monthlyCommuteHours),
     Math.round(facts.commuteBurdenPercentage),

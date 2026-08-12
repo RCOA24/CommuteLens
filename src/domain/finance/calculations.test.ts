@@ -7,6 +7,10 @@ import {
 } from "./calculations";
 
 describe("finance calculations", () => {
+  it("supports a disclosed user-adjustable take-home estimate", () => {
+    expect(estimateTakeHomePay(50_000, 0.8)).toBe(40_000);
+    expect(() => estimateTakeHomePay(50_000, 0.49)).toThrow(RangeError);
+  });
   it("uses the centralized take-home assumption", () => {
     expect(estimateTakeHomePay(45_000)).toBe(40_500);
   });

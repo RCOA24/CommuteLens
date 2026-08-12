@@ -1,15 +1,12 @@
-import { z } from "zod";
 import { coordinateSchema } from "@/shared/validation/domain-schemas";
 import { getGeocodingProvider } from "@/providers/geocoding";
 import type { ApiResult } from "@/shared/types/api";
 import type { Location } from "@/domain/models";
+import { checkRateLimit } from "@/shared/security/rate-limit";
 
 export const runtime = "nodejs";
 
-const querySchema = z.object({
-  lat: z.coerce.number(),
-  lon: z.coerce.number(),
-});
+const requestSchema = coordinateSchema;
 
 export type GeocodeReverseResult = ApiResult<
   { location: Location | null },
@@ -19,23 +16,21 @@ export type GeocodeReverseResult = ApiResult<
 /**
  * CL-004 — reverse geocoding for the browser "Use my location" flow.
  *
- * The coordinate is used for this request only: it is not logged, cached at
- * full precision, or forwarded anywhere else.
+ * The coordinate is used for this request and forwarded to the configured
+ * geocoder. The app does not persist it or place it in the request URL.
  */
-export async function GET(request: Request): Promise<Response> {
-  const params = new URL(request.url).searchParams;
-  const parsedQuery = querySchema.safeParse({
-    lat: params.get("lat"),
-    lon: params.get("lon"),
-  });
-  const parsed = parsedQuery.success
-    ? coordinateSchema.safeParse({
-        latitude: parsedQuery.data.lat,
-        longitude: parsedQuery.data.lon,
-      })
-    : null;
+export async function POST(request: Request): Promise<Response> {
+  const limited = checkRateLimit(request, "geocode-reverse", 10);
+  if (limited) return limited;
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+  const parsed = requestSchema.safeParse(body);
 
-  if (!parsed?.success) {
+  if (!parsed.success) {
     return Response.json(
       {
         success: false,

@@ -1,7 +1,10 @@
 import { CompareJobOffersUseCase } from "@/application/compare-job-offers/use-case";
-import { MockTransitProvider } from "@/providers/transit/mock-transit.provider";
+import { getTransitProvider } from "@/providers/transit";
+import { checkRateLimit } from "@/shared/security/rate-limit";
 
 export async function POST(request: Request): Promise<Response> {
+  const limited = checkRateLimit(request, "commute-compare", 10);
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await request.json();
@@ -15,7 +18,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const result = await new CompareJobOffersUseCase(new MockTransitProvider()).execute(body);
+  const result = await new CompareJobOffersUseCase(getTransitProvider()).execute(body);
   return Response.json(result, {
     status: result.success ? 200 : result.error.code === "INVALID_INPUT" ? 400 : 422,
   });

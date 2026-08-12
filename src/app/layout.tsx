@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Elms_Sans, Instrument_Serif, Stack_Sans_Headline } from "next/font/google";
+import { Archivo, Instrument_Serif, Manrope } from "next/font/google";
+import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
-const stackSans = Stack_Sans_Headline({
+const headlineSans = Archivo({
   subsets: ["latin"],
   variable: "--font-stack",
   display: "swap",
 });
 
-const elmsSans = Elms_Sans({
+const bodySans = Manrope({
   subsets: ["latin"],
   variable: "--font-elms",
   display: "swap",
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="en"
-      className={`scheme-light ${stackSans.variable} ${elmsSans.variable} ${instrumentSerif.variable}`}
+      className={`scheme-light ${headlineSans.variable} ${bodySans.variable} ${instrumentSerif.variable}`}
     >
       <body className="bg-canvas font-body text-ink print:bg-white">{children}</body>
     </html>

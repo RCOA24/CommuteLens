@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DemoGeocodingProvider } from "./demo-geocoding.provider";
 import { GeocodingProviderError } from "./errors";
 import { FallbackGeocodingProvider } from "./fallback-geocoding.provider";
+import { GeoapifyGeocodingProvider } from "./geoapify.provider";
 import { NominatimGeocodingProvider } from "./nominatim.provider";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -93,6 +94,46 @@ describe("NominatimGeocodingProvider", () => {
     const provider = new NominatimGeocodingProvider({ ...noThrottle, fetchImpl });
 
     await expect(provider.search("Cubao")).rejects.toThrow(/unexpected response/i);
+  });
+});
+
+describe("GeoapifyGeocodingProvider", () => {
+  it("uses a Philippines filter and normalizes forward results", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse({
+        results: [{ formatted: "BGC, Taguig, Philippines", lat: 14.5508, lon: 121.0501 }],
+      }),
+    );
+    const provider = new GeoapifyGeocodingProvider({ apiKey: "test-key", fetchImpl });
+
+    await expect(provider.search("BGC Taguig")).resolves.toEqual([
+      { label: "BGC, Taguig, Philippines", coordinate: { latitude: 14.5508, longitude: 121.0501 } },
+    ]);
+    const requestUrl = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(requestUrl.pathname).toBe("/v1/geocode/search");
+    expect(requestUrl.searchParams.get("filter")).toBe("countrycode:ph");
+    expect(requestUrl.searchParams.get("apiKey")).toBe("test-key");
+  });
+
+  it("uses reverse geocoding without persisting precise cache keys", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse({
+        results: [
+          { formatted: "Doña Juana Street, Malabon, Philippines", lat: 14.67, lon: 120.96 },
+        ],
+      }),
+    );
+    const provider = new GeoapifyGeocodingProvider({ apiKey: "test-key", fetchImpl });
+    const location = await provider.reverseGeocode({ latitude: 14.67042, longitude: 120.96049 });
+    expect(location?.label).toContain("Malabon");
+    expect(new URL(String(fetchImpl.mock.calls[0]?.[0])).pathname).toBe("/v1/geocode/reverse");
+  });
+
+  it("does not call Geoapify for short queries", async () => {
+    const fetchImpl = vi.fn();
+    const provider = new GeoapifyGeocodingProvider({ apiKey: "test-key", fetchImpl });
+    await expect(provider.search("bg")).resolves.toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 

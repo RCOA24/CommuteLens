@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_OFFICES, DEMO_ORIGINS, PRIMARY_DEMO_SCENARIO } from "@/data/demo";
+import { DEMO_OFFICES, DEMO_ORIGINS, DEMO_ROUTES, PRIMARY_DEMO_SCENARIO } from "@/data/demo";
+import { applyFareDiscount } from "@/domain/fare";
 import type { Explanation } from "@/application/explain-analysis/use-case";
 import { POST } from "./route";
 
-function post(body: unknown): Request {
+function post(body: unknown, client?: string): Request {
   return new Request("http://localhost/api/explain", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...(client ? { "x-forwarded-for": client } : {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -26,6 +30,25 @@ describe("POST /api/explain", () => {
     expect(body.success).toBe(true);
     expect(body.data.source).toBe("deterministic");
     expect(body.data.text.length).toBeGreaterThan(0);
+  });
+
+  it("keeps a fare-entitled preview route valid when the matching class is explained", async () => {
+    const studentRoute = applyFareDiscount(DEMO_ROUTES[0]!, "student");
+    const response = await POST(
+      post(
+        {
+          ...heroBody,
+          route: studentRoute,
+          discountClass: "student",
+        },
+        "203.0.113.51",
+      ),
+    );
+    const body = (await response.json()) as { success: true; data: Explanation };
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.text).toMatch(/discount/i);
   });
 
   it("explains a comparison from the same engines", async () => {

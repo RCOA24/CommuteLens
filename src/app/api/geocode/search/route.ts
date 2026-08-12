@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getGeocodingProvider } from "@/providers/geocoding";
 import type { ApiResult } from "@/shared/types/api";
 import type { Location } from "@/domain/models";
+import { checkRateLimit } from "@/shared/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ export type GeocodeSearchResult = ApiResult<
 
 /** CL-004 — server-side location search. Keeps the geocoder off the client. */
 export async function GET(request: Request): Promise<Response> {
+  const limited = checkRateLimit(request, "geocode-search", 20);
+  if (limited) return limited;
   const parsed = querySchema.safeParse({
     q: new URL(request.url).searchParams.get("q") ?? "",
   });

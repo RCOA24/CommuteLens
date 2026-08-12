@@ -43,6 +43,8 @@ describe("explanation facts", () => {
         "currency",
         "effectiveHourlyValue",
         "estimatedTakeHomePay",
+        "fareDiscountApplied",
+        "fareDiscountPercentage",
         "incomeAfterCommute",
         "jobTitle",
         "kind",
@@ -57,6 +59,29 @@ describe("explanation facts", () => {
         "transfers",
       ].sort(),
     );
+  });
+
+  it("carries a non-identifying statutory discount fact when an entitlement is priced", async () => {
+    const result = await new AnalyzeJobOfferUseCase(new MockTransitProvider()).execute({
+      origin: DEMO_ORIGINS.cubao,
+      discountClass: "student",
+      jobOffer: {
+        id: "job-student",
+        title: "Software Developer",
+        company: "Demo Tech Manila",
+        monthlySalary: 70_000,
+        officeLocation: DEMO_OFFICES.bgc,
+        workArrangement: "hybrid",
+        onsiteDaysPerWeek: 3,
+        workingHoursPerDay: 8,
+      },
+    });
+    if (!result.success) throw new Error("Fixture analysis failed");
+
+    const facts = buildAnalysisFacts(result.data);
+    expect(facts.fareDiscountApplied).toBe(true);
+    expect(facts.fareDiscountPercentage).toBe(20);
+    expect(permittedNumbers(facts)).toContain(20);
   });
 
   it("strips newlines and control characters from user text", () => {

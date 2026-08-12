@@ -25,6 +25,9 @@ function explainAnalysis(facts: AnalysisFacts): string {
     `Going onsite ${facts.onsiteDaysPerWeek} day${facts.onsiteDaysPerWeek === 1 ? "" : "s"} a week costs about ${peso.format(facts.monthlyCommuteCost)} a month in fares and ${decimal.format(facts.monthlyCommuteHours)} hours of travel.`,
     `That is ${decimal.format(facts.commuteBurdenPercentage)}% of the estimated take-home pay, leaving ${peso.format(facts.incomeAfterCommute)} a month.`,
     `Counting commute time alongside work hours, the offer works out to about ${peso.format(facts.effectiveHourlyValue)} per hour.`,
+    facts.fareDiscountApplied
+      ? `A ${decimal.format(facts.fareDiscountPercentage)}% statutory fare discount is reflected in eligible transit legs.`
+      : "The route uses regular transit fares.",
     `Take-home pay is an estimate, and transit values come from ${facts.provenanceLabels.join(" and ").toLowerCase() || "curated demo data"}.`,
   ].join(" ");
 }

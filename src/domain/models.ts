@@ -19,6 +19,8 @@ export interface JobOffer {
   workArrangement: WorkArrangement;
   onsiteDaysPerWeek: number;
   workingHoursPerDay: number;
+  /** User-adjustable estimate, not an authoritative payroll calculation. */
+  estimatedTakeHomeRate?: number;
 }
 
 export type DataSourceType = "official" | "gtfs" | "crowdsourced" | "estimated" | "demo";
@@ -68,8 +70,13 @@ export interface CommuteAnalysis {
   officeDaysPerMonth: number;
 }
 
+export type FareDiscountClassName = "regular" | "student" | "senior" | "pwd";
+
 export interface JobRealityAnalysis {
+  origin: Location;
   jobOffer: JobOffer;
+  /** Statutory fare entitlement the commute was priced with. */
+  fareDiscountClass: FareDiscountClassName;
   commute: CommuteAnalysis;
   estimatedTakeHomePay: number;
   incomeAfterCommute: number;

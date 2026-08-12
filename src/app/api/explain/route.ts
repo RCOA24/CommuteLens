@@ -5,9 +5,10 @@ import { CompareJobOffersUseCase } from "@/application/compare-job-offers/use-ca
 import { compareJobOffersSchema } from "@/application/compare-job-offers/schema";
 import { buildAnalysisFacts, buildComparisonFacts } from "@/application/explain-analysis/facts";
 import { ExplainAnalysisUseCase, type Explanation } from "@/application/explain-analysis/use-case";
-import { MockTransitProvider } from "@/providers/transit/mock-transit.provider";
+import { getTransitProvider } from "@/providers/transit";
 import { OpenAiExplanationProvider } from "@/providers/ai/openai-explanation.provider";
 import type { ApiResult } from "@/shared/types/api";
+import { checkRateLimit } from "@/shared/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,8 @@ function invalidInput(message: string): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limited = checkRateLimit(request, "explain", 5);
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await request.json();
@@ -48,7 +51,7 @@ export async function POST(request: Request): Promise<Response> {
     return invalidInput(parsed.error.issues[0]?.message ?? "Invalid input.");
   }
 
-  const transitProvider = new MockTransitProvider();
+  const transitProvider = getTransitProvider();
 
   if (parsed.data.kind === "analysis") {
     const analysis = await new AnalyzeJobOfferUseCase(transitProvider).execute(parsed.data);

@@ -7,11 +7,7 @@ import { AnalyzeIcon, PillButton, PrinterIcon, ResetIcon } from "@/components/ui
 import { CustomSelect } from "@/components/ui/custom-select";
 import { LocationSearch } from "@/components/location/location-search";
 import { JobRealityReceipt } from "@/components/receipt/job-reality-receipt";
-import {
-  DEMO_OFFICES,
-  PRIMARY_DEMO_SCENARIO,
-  type DemoOfficeKey,
-} from "@/data/demo";
+import { DEMO_OFFICES, PRIMARY_DEMO_SCENARIO, type DemoOfficeKey } from "@/data/demo";
 import type { JobRealityAnalysis, Location, WorkArrangement } from "@/domain/models";
 
 const OFFICE_ENTRIES = Object.entries(DEMO_OFFICES) as [DemoOfficeKey, Location][];
@@ -250,7 +246,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
                 type="number"
                 inputMode="numeric"
                 min={1}
-                step={1000}
+                step="any"
                 placeholder="45000"
                 value={monthlySalary}
                 onChange={(event) => setMonthlySalary(event.target.value)}

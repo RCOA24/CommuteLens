@@ -1,6 +1,7 @@
 node_modules/
 .next/
 coverage/
+.codex-tmp/
 .env*
 !.env.example
 !.env.local

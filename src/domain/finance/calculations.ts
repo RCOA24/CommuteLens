@@ -1,8 +1,12 @@
 import { COMMUTE_ASSUMPTIONS, TAKE_HOME_ASSUMPTIONS } from "@/shared/constants/assumptions";
 
-export function estimateTakeHomePay(monthlySalary: number): number {
+export function estimateTakeHomePay(
+  monthlySalary: number,
+  estimatedRate: number = TAKE_HOME_ASSUMPTIONS.estimatedRate,
+): number {
   assertNonNegativeFinite(monthlySalary, "Monthly salary");
-  return monthlySalary * TAKE_HOME_ASSUMPTIONS.estimatedRate;
+  assertTakeHomeRate(estimatedRate);
+  return monthlySalary * estimatedRate;
 }
 
 export function calculateCommuteBurden(monthlyCommuteCost: number, takeHomePay: number): number {
@@ -23,6 +27,35 @@ export function calculateMonthlyWorkHours(workingHoursPerDay: number): number {
   );
 }
 
+/**
+ * Inverts the cash-after-transport equation:
+ * gross salary × take-home rate − monthly commute fare = target cash.
+ *
+ * Time deliberately does not appear here. It is a quality-of-life and
+ * effective-hourly-value factor, not money that should be added to a salary.
+ */
+export function calculateRequiredGrossSalary(input: {
+  targetIncomeAfterCommute?: number;
+  monthlyCommuteFare: number;
+  estimatedTakeHomeRate?: number;
+}): number {
+  const targetIncomeAfterCommute = input.targetIncomeAfterCommute ?? 0;
+  const estimatedTakeHomeRate = input.estimatedTakeHomeRate ?? TAKE_HOME_ASSUMPTIONS.estimatedRate;
+  assertFinite(targetIncomeAfterCommute, "Target income after commute");
+  assertNonNegativeFinite(input.monthlyCommuteFare, "Monthly commute fare");
+  assertTakeHomeRate(estimatedTakeHomeRate);
+  return Math.max(0, (targetIncomeAfterCommute + input.monthlyCommuteFare) / estimatedTakeHomeRate);
+}
+
+/** Minimum whole-peso gross salary that will not undershoot the cash target. */
+export function minimumRequiredGrossSalary(input: {
+  targetIncomeAfterCommute?: number;
+  monthlyCommuteFare: number;
+  estimatedTakeHomeRate?: number;
+}): number {
+  return Math.ceil(calculateRequiredGrossSalary(input));
+}
+
 export function calculateEffectiveHourlyValue(input: {
   incomeAfterCommute: number;
   workingHoursPerDay: number;
@@ -33,6 +66,12 @@ export function calculateEffectiveHourlyValue(input: {
   const monthlyWorkHours = calculateMonthlyWorkHours(input.workingHoursPerDay);
   const effectiveHours = monthlyWorkHours + input.monthlyCommuteHours;
   return effectiveHours === 0 ? 0 : input.incomeAfterCommute / effectiveHours;
+}
+
+function assertTakeHomeRate(value: number): void {
+  if (!Number.isFinite(value) || value < 0.5 || value > 1) {
+    throw new RangeError("Estimated take-home rate must be between 0.5 and 1.");
+  }
 }
 
 function assertNonNegativeFinite(value: number, label: string): void {

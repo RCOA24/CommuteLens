@@ -69,7 +69,9 @@ export class NominatimGeocodingProvider implements GeocodingProvider {
 
   constructor(options: NominatimProviderOptions = {}) {
     this.endpoint = (options.endpoint ?? DEFAULT_ENDPOINT).replace(/\/$/, "");
-    this.userAgent = options.userAgent ?? "CommuteLens/0.1 (CUTC 2026 prototype)";
+    this.userAgent =
+      options.userAgent ??
+      "CommuteLens/1.0 (CUTC 2026 prototype; configure NOMINATIM_USER_AGENT with deployment contact)";
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.minIntervalMs = options.minIntervalMs ?? DEFAULT_MIN_INTERVAL_MS;
     this.fetchImpl = options.fetchImpl ?? fetch;

@@ -492,6 +492,28 @@
     margin: 2mm 0;
   }
 
+  /*
+   * The comparison is a two-column table and is unreadable squeezed onto 80mm
+   * receipt paper, so it claims its own named page. Named pages need Chrome
+   * 110+ / Firefox 110+; older engines fall back to the 80mm page above, which
+   * still prints every value, just narrow.
+   */
+  @page comparison {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  .comparison-print {
+    page: comparison;
+  }
+
+  /* Emphasis and winner marking are meaningless if the browser strips them. */
+  .comparison-print,
+  .comparison-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   body {
     background: white !important;
   }

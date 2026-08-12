@@ -8,6 +8,11 @@ export default defineConfig({
     },
   },
   test: {
+    /*
+     * Node stays the default so the domain, application, and route tests keep
+     * running without a DOM they do not need. Component tests opt in per file
+     * with a `@vitest-environment jsdom` docblock.
+     */
     environment: "node",
   },
 });

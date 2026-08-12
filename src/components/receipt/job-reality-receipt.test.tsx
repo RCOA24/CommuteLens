@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { JobRealityReceipt } from "@/components/receipt/job-reality-receipt";
-import { makeAnalysis, makeRemoteAnalysis } from "@/test/fixtures";
+import { makeAnalysis, makeMixedAnalysis, makeRemoteAnalysis } from "@/test/fixtures";
 
 afterEach(cleanup);
 
@@ -30,6 +30,56 @@ describe("JobRealityReceipt — provenance", () => {
 
     expect(screen.queryByText("ROUTE")).toBeNull();
     expect(screen.queryByLabelText("Commute route segments")).toBeNull();
+  });
+});
+
+describe("JobRealityReceipt — per-segment provenance", () => {
+  it("labels every segment, not just the route as a whole", () => {
+    render(<JobRealityReceipt analysis={makeMixedAnalysis()} issuedAt={ISSUED} />);
+
+    const segments = screen.getAllByRole("listitem");
+    // The destination row is a listitem too and carries no source of its own.
+    const labelled = segments.filter((s) => within(s).queryByText(/Data source:/));
+
+    expect(labelled).toHaveLength(2);
+  });
+
+  it("distinguishes a curated leg from an estimated one", () => {
+    render(<JobRealityReceipt analysis={makeMixedAnalysis()} issuedAt={ISSUED} />);
+
+    // A route-level badge alone would render both legs identically and let the
+    // estimated fare inherit the credibility of the curated one.
+    const tags = screen.getAllByText(/Data source:/).map((node) => node.parentElement?.textContent);
+
+    expect(tags).toContain("Data source: Estimated");
+    expect(tags).toContain("Data source: Demo");
+  });
+
+  it("names the source type in full for assistive tech and hover", () => {
+    render(<JobRealityReceipt analysis={makeAnalysis()} issuedAt={ISSUED} />);
+
+    const tag = screen.getByText(/Data source:/).parentElement;
+
+    // The visible text is abbreviated for an 80mm receipt; the full descriptor
+    // must still be reachable rather than lost to the abbreviation.
+    expect(tag?.getAttribute("title")).toBe("Curated demo data");
+  });
+});
+
+describe("JobRealityReceipt — data vintage", () => {
+  it("dates the disclosure by the oldest source, not the newest", () => {
+    render(<JobRealityReceipt analysis={makeMixedAnalysis()} issuedAt={ISSUED} />);
+
+    // Sources are dated Jan and Mar 2026. Claiming Mar would present the whole
+    // receipt as fresher than its oldest input.
+    expect(screen.getByText(/Data as of Jan 2026/)).toBeTruthy();
+  });
+
+  it("omits the claim when no source dates itself", () => {
+    const analysis = makeAnalysis({ sources: [{ type: "demo", name: "Undated demo source" }] });
+    render(<JobRealityReceipt analysis={analysis} issuedAt={ISSUED} />);
+
+    expect(screen.queryByText(/Data as of/)).toBeNull();
   });
 });
 

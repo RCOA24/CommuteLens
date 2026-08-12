@@ -22,7 +22,16 @@ const OFFICE: Location = {
 export const DEMO_SOURCE: DataSource = {
   type: "demo",
   name: "Commute Lens curated CUTC scenario",
+  effectiveDate: "2026-01-05",
   confidence: "medium",
+};
+
+/** Weaker than the curated source, and dated later, so ordering is testable. */
+export const ESTIMATED_SOURCE: DataSource = {
+  type: "estimated",
+  name: "Commute Lens estimated Metro Manila fare band",
+  effectiveDate: "2026-03-20",
+  confidence: "low",
 };
 
 export function makeAnalysis(overrides: Partial<JobRealityAnalysis> = {}): JobRealityAnalysis {
@@ -69,6 +78,25 @@ export function makeAnalysis(overrides: Partial<JobRealityAnalysis> = {}): JobRe
     sources: [DEMO_SOURCE],
     ...overrides,
   };
+}
+
+/**
+ * A route whose legs do not share provenance: one curated, one only estimated
+ * from a published fare band. Real demo routes mix like this, and it is the
+ * case a single route-level badge would hide.
+ */
+export function makeMixedAnalysis(): JobRealityAnalysis {
+  const base = makeAnalysis();
+  return makeAnalysis({
+    commute: {
+      ...base.commute,
+      segments: [
+        { ...base.commute.segments[0], mode: "jeepney", source: ESTIMATED_SOURCE },
+        { ...base.commute.segments[0], mode: "rail", source: DEMO_SOURCE },
+      ],
+    },
+    sources: [DEMO_SOURCE, ESTIMATED_SOURCE],
+  });
 }
 
 /** A fully remote offer: nothing routed, so no transit source exists. */

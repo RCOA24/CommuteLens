@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { JobComparison } from "@/components/comparison/job-comparison";
 import { compareJobRealities } from "@/domain/job/comparison";
-import { makeAnalysis, makeRemoteAnalysis } from "@/test/fixtures";
+import { ESTIMATED_SOURCE, makeAnalysis, makeRemoteAnalysis } from "@/test/fixtures";
 import type { JobRealityAnalysis } from "@/domain/models";
 
 afterEach(cleanup);
@@ -119,8 +119,32 @@ describe("JobComparison — provenance", () => {
     // take-home figures are still estimates and must not lose their label.
     renderComparison(makeRemoteAnalysis(), makeRemoteAnalysis());
 
-    expect(screen.getByText("Estimated")).toBeTruthy();
+    expect(screen.getByText(/Neither offer has an onsite commute/)).toBeTruthy();
     expect(screen.getByText(/Not payroll, tax, or financial advice/)).toBeTruthy();
+  });
+});
+
+describe("JobComparison — per-column provenance", () => {
+  it("reports each offer's data quality separately", () => {
+    // Curated demo data ranks below an estimated fare band, so a merged badge
+    // would report "Demo" for both and hide that Job A's numbers are the
+    // better-sourced of the two.
+    renderComparison(makeAnalysis({ sources: [ESTIMATED_SOURCE] }), makeAnalysis());
+
+    const tags = screen.getAllByText(/Data source:/).map((node) => node.parentElement?.textContent);
+
+    expect(tags).toContain("Data source: Demo");
+    expect(tags).toContain("Data source: Estimated");
+  });
+
+  it("labels a remote offer that routes nothing rather than leaving it blank", () => {
+    renderComparison(makeRemoteAnalysis(), makeAnalysis());
+
+    const tags = screen.getAllByText(/Data source:/).map((node) => node.parentElement?.textContent);
+
+    // Take-home is still an estimate even with no commute to route.
+    expect(tags).toHaveLength(2);
+    expect(tags).toContain("Data source: Estimated");
   });
 });
 

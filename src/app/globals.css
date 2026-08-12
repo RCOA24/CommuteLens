@@ -375,6 +375,16 @@
   margin-bottom: 0.5rem;
 }
 
+/* CL-014 — a solid badge reads as a warning, so reserve it for the "caution"
+   tone (demo and estimated data). Verified sources get a quieter outline
+   instead of shouting at the user about data that is fine. */
+.ticket-provenance-badge[data-tone="neutral"],
+.ticket-provenance-badge[data-tone="informational"] {
+  background: transparent;
+  color: var(--ticket-ink);
+  border: 1px solid var(--ticket-ink);
+}
+
 .ticket-disclaimer {
   font-size: 0.58rem;
   line-height: 1.5;
@@ -462,10 +472,31 @@
 .route-stop-transport {
   display: flex;
   align-items: center;
+  /* Wraps rather than overflows once the provenance tag joins the row: the
+     80mm receipt has no horizontal room to spare. */
+  flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: 0.2rem;
   font-size: 0.65rem;
   color: var(--ticket-muted);
+}
+
+/* CL-014 — per-segment provenance tag. Every segment states where its fare
+   and duration came from, so a curated leg is never mistaken for a verified
+   one. Tone comes from the descriptor, not from the call site. */
+.route-stop-source {
+  padding: 0 0.25rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.route-stop-source[data-tone="caution"] {
+  color: var(--ticket-ink);
 }
 
 .route-stop-icon {

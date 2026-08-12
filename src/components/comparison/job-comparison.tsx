@@ -1,5 +1,5 @@
 import { summarizeProvenance } from "@/data/demo";
-import type { ComparedMetric, JobRealityComparison } from "@/domain/models";
+import type { ComparedMetric, DataSource, JobRealityComparison } from "@/domain/models";
 
 const peso = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -111,6 +111,32 @@ interface JobComparisonProps {
 }
 
 /**
+ * CL-014 — how solid one column's numbers are, shown beside that column.
+ *
+ * A merged badge would report only the weaker of the two offers and let the
+ * better-sourced one appear just as shaky. Falls back to "Estimated" rather
+ * than rendering nothing when an offer routes no commute, because its
+ * take-home figure is still an estimate.
+ */
+function ColumnProvenance({ sources }: { sources: readonly DataSource[] }) {
+  const summary = summarizeProvenance(sources);
+  const shortLabel = summary ? summary.weakest.shortLabel : "Estimated";
+  const fullLabel = summary ? summary.weakest.label : "Estimated take-home pay, no commute routed";
+
+  return (
+    <p className="mt-1.5">
+      <span
+        title={fullLabel}
+        className="inline-block rounded border border-ink/25 px-1 py-px text-[0.55rem] font-bold tracking-[0.08em] text-muted uppercase"
+      >
+        <span className="sr-only">Data source: </span>
+        {shortLabel}
+      </span>
+    </p>
+  );
+}
+
+/**
  * Side-by-side comparison of two job offers, showing all seven metrics with
  * per-metric winner marking. Does not compute anything — all values come
  * straight from the comparison result produced by the domain engine.
@@ -118,7 +144,12 @@ interface JobComparisonProps {
 export function JobComparison({ comparison }: JobComparisonProps) {
   const { jobA, jobB, metrics } = comparison;
 
-  // Provenance: merge sources from both analyses
+  /*
+   * The footer disclosure merges both analyses on purpose: it states the
+   * weakest thing true of anything on screen. The per-column tags below are
+   * what keep the merge from hiding a difference, because one offer's numbers
+   * can rest on weaker data than the other's and that is decision-relevant.
+   */
   const allSources = [...jobA.sources, ...jobB.sources];
   const provenance = summarizeProvenance(allSources);
 
@@ -134,6 +165,7 @@ export function JobComparison({ comparison }: JobComparisonProps) {
           <p className="text-[0.78rem] text-muted [overflow-wrap:anywhere]">
             {jobA.jobOffer.company}
           </p>
+          <ColumnProvenance sources={jobA.sources} />
         </div>
         <div>
           <p className="text-[0.65rem] font-bold tracking-[0.12em] text-muted uppercase">Job B</p>
@@ -143,6 +175,7 @@ export function JobComparison({ comparison }: JobComparisonProps) {
           <p className="text-[0.78rem] text-muted [overflow-wrap:anywhere]">
             {jobB.jobOffer.company}
           </p>
+          <ColumnProvenance sources={jobB.sources} />
         </div>
         {/* Difference column header — hidden on narrow screens */}
         <div className="hidden sm:block">

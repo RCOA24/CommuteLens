@@ -1,9 +1,11 @@
-import { BadgeCheck, Info, TriangleAlert } from "lucide-react";
+import { Archive, BadgeCheck, CalendarClock, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { RouteStatusDescriptor, RouteStatusKind } from "./provenance";
 
 const KIND_ICON: Record<RouteStatusKind, ReactNode> = {
   live: <BadgeCheck className="size-3.5 shrink-0" aria-hidden="true" />,
+  scheduled: <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />,
+  archival: <Archive className="size-3.5 shrink-0" aria-hidden="true" />,
   estimated: <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />,
   demo: <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />,
   remote: <Info className="size-3.5 shrink-0" aria-hidden="true" />,

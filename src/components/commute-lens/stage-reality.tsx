@@ -2,13 +2,13 @@
 
 import { motion } from "motion/react";
 import {
+  ArrowLeft,
   ArrowRight,
   BadgePercent,
   Clock3,
   Gauge,
   Hourglass,
   Info,
-  Pencil,
   Plus,
   Printer,
   RotateCcw,
@@ -18,8 +18,10 @@ import {
 import type { ReactNode } from "react";
 import { toExplainAnalysisRequest } from "@/shared/contracts/explanation";
 import type { CommuteReadiness } from "@/application/assess-commute-readiness/use-case";
+import type { ResearchedCommuteRoutePlan } from "@/application/research-commute-route/research-route";
 import type { FareConfirmationSummary } from "@/application/fare-confirmation/fare-confirmation.service";
 import { BreakEvenCard } from "./break-even-card";
+import { CommuteDirectionsCard } from "./commute-directions-card";
 import { CommuteReadinessCard } from "./commute-readiness-card";
 import { CommuteViabilityPlanner } from "./commute-viability-planner";
 import { ActionButton } from "@/components/ui/action-button";
@@ -48,6 +50,7 @@ import {
 import { describeRouteStatus, routeStatusMeaning } from "./provenance";
 import { RealityReceipt } from "./reality-receipt";
 import { RouteStatusBadge } from "./route-status-badge";
+import { RouteResearchPanel } from "./route-research-panel";
 import { ScenarioExplorer } from "./scenario-explorer";
 
 /**
@@ -66,6 +69,7 @@ export function RealityStage({
   scenarioDelta,
   farePolicyImpact,
   fareConfirmations,
+  researchedRoutePlan,
   activeScenarioRoute,
   scenarioRouteState,
   readiness,
@@ -74,6 +78,7 @@ export function RealityStage({
   viabilityTargetIncome,
   onScenarioDaysChange,
   onViabilityTargetIncomeChange,
+  onResearchedRoutePlanChange,
   reduceMotion,
   onEdit,
   onCompare,
@@ -88,6 +93,7 @@ export function RealityStage({
   scenarioDelta: JobScenarioDelta;
   farePolicyImpact: FarePolicyImpact | null;
   fareConfirmations: readonly FareConfirmationSummary[];
+  researchedRoutePlan: ResearchedCommuteRoutePlan | null;
   activeScenarioRoute: CommuteRoute | null;
   scenarioRouteState: "idle" | "loading" | "error";
   readiness: CommuteReadiness | null;
@@ -96,6 +102,7 @@ export function RealityStage({
   viabilityTargetIncome: number;
   onScenarioDaysChange: (days: number) => void;
   onViabilityTargetIncomeChange: (value: number) => void;
+  onResearchedRoutePlanChange: (plan: ResearchedCommuteRoutePlan | null) => void;
   reduceMotion: boolean;
   onEdit: () => void;
   onCompare: () => void;
@@ -127,8 +134,8 @@ export function RealityStage({
           </h1>
         </div>
         <ActionButton variant="secondary" onClick={onEdit}>
-          <Pencil className="size-3.5" aria-hidden="true" />
-          Edit inputs
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          Back to offer
         </ActionButton>
       </header>
 
@@ -283,6 +290,19 @@ export function RealityStage({
           onChange={onScenarioDaysChange}
           routeState={scenarioRouteState}
           reduceMotion={reduceMotion}
+        />
+      </div>
+
+      {/* ---------- Practical route guidance ---------- */}
+      <div className="mt-5">
+        <CommuteDirectionsCard route={activeRoute} />
+      </div>
+
+      <div className="mt-5">
+        <RouteResearchPanel
+          route={activeRoute}
+          plan={researchedRoutePlan}
+          onPlanChange={onResearchedRoutePlanChange}
         />
       </div>
 

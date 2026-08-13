@@ -5,6 +5,7 @@ Commute Lens is a Philippines-first job decision tool built for the CUTC: Transf
 ## What users get
 
 - Live BusMaps route timing when configured, with explicitly estimated fares.
+- Archival DOTC/Sakay Metro Manila GTFS stop and connection patterns as an independent open-data fallback.
 - Geoapify-powered address search, reverse geocoding, and an interactive route-stop map.
 - Estimated monthly take-home after transport.
 - Effective hourly value that counts both work and commute hours.
@@ -32,12 +33,22 @@ The default take-home percentage is 90%, but it is an adjustable planning assump
 ## Data and fallback behavior
 
 - **Live route:** BusMaps supplies itinerary legs and timing. Because its route response does not quote fares, Commute Lens labels mode-based fare values as low-confidence estimates.
-- **Distance estimate:** used only for a genuine BusMaps coverage gap. It assumes straight-line distance, 18 km/h city travel, 12 minutes of access/waiting, and an estimated fare formula.
-- **Provider failure:** authentication, quota, timeout, and outage failures are returned explicitly and are not disguised as estimates.
+- **Published open-data route pattern:** if live routing is unavailable or has no coverage, the server loads the public DOTC/Sakay Metro Manila GTFS archive, finds nearby stops, and searches direct or one-transfer patterns. The feed calendar ended in 2020, so the UI labels these results archival and estimates access walking, transfer waiting, and fares. It never calls them current service.
+- **Distance estimate:** used after the configured routing sources confirm a coverage gap. It assumes straight-line distance, 18 km/h city travel, 12 minutes of access/waiting, and an estimated fare formula.
+- **Provider failure:** if every configured source fails operationally, the outage remains explicit rather than masquerading as route data.
 - **Curated demo:** enabled only with `TRANSIT_PROVIDER=demo` and/or `GEOCODING_PROVIDER=demo`.
-- **Mobility Database:** the adapter can inspect Philippine GTFS catalog metadata for future ingestion. That metadata is not attached to routes it did not produce.
+- **Mobility Database:** `mdb-1106` catalogs the same Sakay/DOTC feed used by the open-data provider. `mdb-1269` is deprecated and is intentionally excluded. The server caches one validated, bounded ZIP extraction per process.
 
-Geoapify search runs only after the user submits a query. The interactive map gets Geoapify tiles through a same-origin server proxy, so the key is never sent to the browser; it shows BusMaps stop locations as a dashed overview—not fabricated road geometry.
+### Open transit sources
+
+- [BusMaps Metro Manila feed](https://busmaps.com/en/philippines/Philippine-Transit-App-Challenge/metro-manila) — live/enriched data remains behind the configured BusMaps API.
+- [Mobility Database mdb-1106](https://mobilitydatabase.org/feeds/gtfs/mdb-1106) — catalog entry for the DOTC/Sakay Metro Manila feed.
+- [Sakay Metro Manila GTFS](https://github.com/sakayph/gtfs) — archive downloaded by the static fallback. Its DOTC developer license permits transit-rider applications but is not an unrestricted SPDX open-source license.
+- [Mobility Database mdb-1269](https://mobilitydatabase.org/feeds/gtfs/mdb-1269) — deprecated duplicate/older feed; documented but not routed.
+
+The supplied feeds are Metro Manila-focused. They do not establish reliable Bulacan coverage, so trips such as Guiguinto to E-Med remain clearly labelled distance estimates unless a live provider returns an itinerary.
+
+Geoapify search runs only after the user submits a query. The interactive map gets Geoapify tiles through a same-origin server proxy, so the key is never sent to the browser; it shows provider-returned stop locations as a dashed overview—not fabricated road geometry.
 
 ## Architecture
 
@@ -67,7 +78,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-For an offline rehearsal, set both provider selectors to `demo`. For a live run, configure only `GEOAPIFY_API_KEY`; it powers server-side geocoding and the same-origin map-tile proxy. Never expose Geoapify, BusMaps, Mobility, or OpenAI keys through `NEXT_PUBLIC_` variables.
+For an offline rehearsal, set both provider selectors to `demo`. For live routing, configure `BUSMAPS_API_KEY`; otherwise the server starts with the public archival GTFS route-pattern provider and falls back to distance when that dataset has no coverage. Set `TRANSIT_PROVIDER=gtfs` to test only the open-data path, or `OPEN_GTFS_ENABLED=false` to disable it. `OPEN_GTFS_URL` can point to another licensed GTFS ZIP. Configure `GEOAPIFY_API_KEY` for server-side geocoding and the same-origin map-tile proxy. Never expose Geoapify, BusMaps, Mobility, or OpenAI keys through `NEXT_PUBLIC_` variables.
 
 ## API
 

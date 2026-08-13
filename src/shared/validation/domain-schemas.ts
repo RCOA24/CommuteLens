@@ -17,6 +17,7 @@ export const dataSourceSchema = z.object({
   sourceUrl: z.url().optional(),
   retrievedAt: z.iso.datetime().optional(),
   effectiveDate: z.iso.date().optional(),
+  freshness: z.enum(["realtime", "static", "archival"]).optional(),
   confidence: z.enum(["high", "medium", "low"]).optional(),
 });
 

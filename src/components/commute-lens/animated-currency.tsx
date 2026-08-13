@@ -18,8 +18,9 @@ export function AnimatedCurrency({
   reduceMotion: boolean;
   className?: string;
 }) {
-  const motionValue = useMotionValue(value);
-  const [display, setDisplay] = useState(value);
+  const initialValue = reduceMotion ? value : 0;
+  const motionValue = useMotionValue(initialValue);
+  const [display, setDisplay] = useState(initialValue);
 
   useMotionValueEvent(motionValue, "change", setDisplay);
 

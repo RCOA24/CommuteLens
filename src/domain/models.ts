@@ -31,6 +31,8 @@ export interface DataSource {
   sourceUrl?: string;
   retrievedAt?: string;
   effectiveDate?: string;
+  /** Whether routing data reflects a live service, a static timetable, or an archived pattern. */
+  freshness?: "realtime" | "static" | "archival";
   confidence?: "high" | "medium" | "low";
 }
 

@@ -13,7 +13,7 @@ const requestSchema = z.object({
 });
 
 export type RoutePreviewResult = ApiResult<
-  { route: CommuteRoute },
+  { routes: CommuteRoute[] },
   "INVALID_INPUT" | "ROUTE_NOT_FOUND" | "TRANSIT_PROVIDER_UNAVAILABLE"
 >;
 
@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
   if (result.status === "success")
     return Response.json({
       success: true,
-      data: { route: result.routes[0] },
+      data: { routes: result.routes.slice(0, 3) },
     } satisfies RoutePreviewResult);
   return Response.json(
     {

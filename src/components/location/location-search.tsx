@@ -253,7 +253,7 @@ export function LocationSearch({
               id={listboxId}
               role="listbox"
               aria-label={`${label} results`}
-              className="absolute top-full left-0 z-50 mt-1.5 max-h-64 w-full overflow-y-auto rounded-[1.1rem] border border-ink/12 bg-white py-1 shadow-[0_18px_45px_rgba(16,42,43,0.18)]"
+              className="absolute top-full left-0 z-50 mt-1.5 max-h-[min(18rem,45svh)] w-full touch-pan-y overscroll-contain overflow-y-auto rounded-[1.1rem] border border-ink/12 bg-white py-1 shadow-[0_18px_45px_rgba(16,42,43,0.18)]"
             >
               {results.map((location, index) => (
                 <li
@@ -264,7 +264,7 @@ export function LocationSearch({
                   className={`flex cursor-pointer items-start gap-2.5 px-3 py-2.5 ${
                     index === activeIndex ? "bg-ink text-paper" : "hover:bg-ink/6"
                   }`}
-                  onPointerDown={() => select(location)}
+                  onClick={() => select(location)}
                   onMouseEnter={() => setActiveIndex(index)}
                 >
                   <MapPin

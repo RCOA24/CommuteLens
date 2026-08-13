@@ -4,9 +4,11 @@ import type { CommuteRoute } from "@/domain/models";
 /**
  * Turns a route's `DataSource[]` into the copy the UI is allowed to show.
  *
- * The three route labels are fixed product copy and must not drift, because
+ * The five route labels are fixed product copy and must not drift, because
  * they are the app's honesty contract with the user:
- *   - "Live route · estimated fares"          a real itinerary, estimated money
+ *   - "Live route · estimated fares"          live provider itinerary
+ *   - "Scheduled route · estimated fares"     current static timetable
+ *   - "Published route pattern"               archival GTFS topology
  *   - "Low-confidence distance estimate"      no itinerary, distance-derived
  *   - "Curated demo route"                    hand-assembled rehearsal data
  *
@@ -14,7 +16,7 @@ import type { CommuteRoute } from "@/domain/models";
  * descriptors so this module never invents its own trust vocabulary.
  */
 
-export type RouteStatusKind = "live" | "estimated" | "demo" | "remote";
+export type RouteStatusKind = "live" | "scheduled" | "archival" | "estimated" | "demo" | "remote";
 
 export interface RouteStatusDescriptor {
   kind: RouteStatusKind;
@@ -47,13 +49,32 @@ export function describeRouteStatus(route: CommuteRoute | null): RouteStatusDesc
   const isDemo = route.sources.some((source) => source.type === "demo");
   const isAllEstimated =
     route.sources.length > 0 && route.sources.every((source) => source.type === "estimated");
+  const hasArchivalRouting = route.sources.some(
+    (source) => source.type === "gtfs" && source.freshness === "archival",
+  );
+  const hasStaticRouting = route.sources.some(
+    (source) => source.type === "gtfs" && source.freshness === "static",
+  );
 
-  const kind: RouteStatusKind = isDemo ? "demo" : isAllEstimated ? "estimated" : "live";
-  const label = isDemo
-    ? "Curated demo route"
+  const kind: RouteStatusKind = isDemo
+    ? "demo"
     : isAllEstimated
-      ? "Low-confidence distance estimate"
-      : "Live route · estimated fares";
+      ? "estimated"
+      : hasArchivalRouting
+        ? "archival"
+        : hasStaticRouting
+          ? "scheduled"
+          : "live";
+  const label =
+    kind === "demo"
+      ? "Curated demo route"
+      : kind === "estimated"
+        ? "Low-confidence distance estimate"
+        : kind === "archival"
+          ? "Published route pattern · verify service"
+          : kind === "scheduled"
+            ? "Scheduled route · estimated fares"
+            : "Live route · estimated fares";
 
   return {
     kind,
@@ -74,7 +95,11 @@ export function describeRouteStatus(route: CommuteRoute | null): RouteStatusDesc
 export function routeStatusMeaning(kind: RouteStatusKind): string {
   switch (kind) {
     case "live":
-      return "Timings come from a real transit itinerary. Fares are estimated from typical Metro Manila bands.";
+      return "Timings come from a live transit itinerary. Fares are estimated from typical Metro Manila bands.";
+    case "scheduled":
+      return "Timings come from a published static timetable and may not reflect delays, cancellations, or service changes.";
+    case "archival":
+      return "Stops and connections come from an archived DOTC/Sakay route pattern. Timing and fare are estimates; confirm that the service still operates.";
     case "estimated":
       return "No itinerary matched this corridor, so travel time and fare were estimated from distance. Treat them as a rough floor.";
     case "demo":

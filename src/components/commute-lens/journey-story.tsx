@@ -49,6 +49,7 @@ export function JourneyStory({
 }) {
   const status = describeRouteStatus(route);
   const lastIndex = route.segments.length - 1;
+  const hasTransitLeg = route.segments.some((segment) => segment.mode !== "walk");
 
   function reveal(index: number) {
     if (reduceMotion) return {};
@@ -164,7 +165,11 @@ export function JourneyStory({
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-paper/15 pt-5">
         <p className="text-xs font-bold text-paper/65">
-          {transferLabel(route.transfers)} · fares estimated, not ticketed
+          {route.transfers === 0
+            ? hasTransitLeg
+              ? "No transit transfers counted · walking access or exit may still be included"
+              : "Walking-only itinerary · no transit transfers counted"
+            : `${transferLabel(route.transfers)} · fares estimated, not ticketed`}
         </p>
         <RouteStatusBadge status={status} surface="ink" />
       </div>

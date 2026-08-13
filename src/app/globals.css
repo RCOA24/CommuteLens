@@ -1542,3 +1542,179 @@ button {
     break-inside: avoid;
   }
 }
+
+/* ==========================================================================
+   COMMUTE READINESS WEATHER SCENES
+   Forecast facts choose the static scene. Motion is opt-in below so reduced-
+   motion users receive the same weather context without drifting effects.
+   ========================================================================== */
+
+.commute-readiness-weather {
+  background: color-mix(in srgb, var(--color-paper) 94%, white);
+}
+
+.commute-readiness-weather[data-weather="rain"] {
+  background: linear-gradient(145deg, #eef6f3 0%, #e6f0ee 58%, #dce9e7 100%);
+}
+
+.commute-readiness-weather[data-weather="cloud"] {
+  background: linear-gradient(145deg, #fbfcf7 0%, #edf3ef 58%, #e4ece9 100%);
+}
+
+.commute-readiness-weather[data-weather="sun"] {
+  background: linear-gradient(145deg, #fffdf4 0%, #fff7d7 58%, #f1f7e9 100%);
+}
+
+.commute-readiness-weather[data-weather="heat"] {
+  background: linear-gradient(145deg, #fffdf4 0%, #fff0d0 52%, #fce3ce 100%);
+}
+
+.commute-weather-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.commute-weather-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(255, 253, 244, 0.25) 48%, rgba(255, 253, 244, 0.82) 100%);
+}
+
+.commute-weather-orb,
+.commute-weather-cloud,
+.commute-weather-rain,
+.commute-weather-heat {
+  position: absolute;
+  display: none;
+}
+
+.commute-weather-scene[data-weather="sun"] .commute-weather-orb,
+.commute-weather-scene[data-weather="heat"] .commute-weather-orb {
+  top: -3.6rem;
+  right: -2.6rem;
+  display: block;
+  width: 13rem;
+  height: 13rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(229, 185, 79, 0.62) 0 24%, rgba(229, 185, 79, 0.25) 25% 47%, transparent 68%);
+}
+
+.commute-weather-scene[data-weather="cloud"] .commute-weather-cloud,
+.commute-weather-scene[data-weather="rain"] .commute-weather-cloud {
+  display: block;
+  width: 10rem;
+  height: 2.7rem;
+  border-radius: 999px;
+  background: rgba(87, 111, 111, 0.13);
+  box-shadow:
+    2.2rem -1.4rem 0 -0.2rem rgba(87, 111, 111, 0.12),
+    5.1rem -0.7rem 0 -0.4rem rgba(87, 111, 111, 0.1);
+}
+
+.commute-weather-cloud-a {
+  top: 2.8rem;
+  left: -2rem;
+}
+
+.commute-weather-cloud-b {
+  top: 8rem;
+  right: -3rem;
+  opacity: 0.72;
+}
+
+.commute-weather-scene[data-weather="rain"] .commute-weather-rain {
+  inset: -8rem -4rem 32%;
+  display: block;
+  opacity: 0.3;
+  background-image: repeating-linear-gradient(112deg, transparent 0 28px, rgba(25, 120, 76, 0.42) 29px 31px, transparent 32px 50px);
+  background-size: 52px 72px;
+}
+
+.commute-weather-scene[data-weather="heat"] .commute-weather-heat {
+  inset: 0;
+  display: block;
+  opacity: 0.22;
+  background-image: repeating-radial-gradient(ellipse at 85% 0%, transparent 0 18px, rgba(200, 63, 22, 0.18) 19px 21px, transparent 22px 42px);
+  background-size: 120% 135%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .commute-weather-scene[data-weather="rain"] .commute-weather-rain {
+    animation: commute-rain-fall 1.45s linear infinite;
+  }
+
+  .commute-weather-scene[data-weather="cloud"] .commute-weather-cloud-a,
+  .commute-weather-scene[data-weather="rain"] .commute-weather-cloud-a {
+    animation: commute-cloud-drift 10s ease-in-out infinite alternate;
+  }
+
+  .commute-weather-scene[data-weather="cloud"] .commute-weather-cloud-b,
+  .commute-weather-scene[data-weather="rain"] .commute-weather-cloud-b {
+    animation: commute-cloud-drift-reverse 13s ease-in-out infinite alternate;
+  }
+
+  .commute-weather-scene[data-weather="sun"] .commute-weather-orb {
+    animation: commute-sun-pulse 4.5s ease-in-out infinite;
+  }
+
+  .commute-weather-scene[data-weather="heat"] .commute-weather-orb {
+    animation: commute-sun-pulse 3.2s ease-in-out infinite;
+  }
+
+  .commute-weather-scene[data-weather="heat"] .commute-weather-heat {
+    animation: commute-heat-shimmer 5s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes commute-rain-fall {
+  from {
+    background-position: 0 -72px;
+  }
+  to {
+    background-position: -52px 72px;
+  }
+}
+
+@keyframes commute-cloud-drift {
+  from {
+    transform: translate3d(-0.8rem, 0, 0);
+  }
+  to {
+    transform: translate3d(3.2rem, 0.35rem, 0);
+  }
+}
+
+@keyframes commute-cloud-drift-reverse {
+  from {
+    transform: translate3d(1.5rem, 0, 0);
+  }
+  to {
+    transform: translate3d(-2.8rem, -0.25rem, 0);
+  }
+}
+
+@keyframes commute-sun-pulse {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes commute-heat-shimmer {
+  from {
+    transform: translate3d(0, -0.5rem, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.2rem, 0.7rem, 0) scale(1.04);
+  }
+}

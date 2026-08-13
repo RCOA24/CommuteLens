@@ -60,6 +60,14 @@ export function formatMinutes(value: number): string {
   return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
 }
 
+/** A road-distance estimate is rounded to a practical planning precision. */
+export function formatDistanceKm(value: number): string {
+  return `${new Intl.NumberFormat("en-PH", {
+    minimumFractionDigits: value < 10 ? 1 : 0,
+    maximumFractionDigits: 1,
+  }).format(value)} km`;
+}
+
 /** Trims a geocoded label down to something that fits a headline. */
 export function shortPlace(label: string): string {
   return label.split(",")[0].replace(" Center", "").trim();

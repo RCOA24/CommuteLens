@@ -130,6 +130,7 @@ export class BusMapsTransitProvider implements TransitProvider {
       name: "BusMaps live transit routing",
       sourceUrl: "https://busmaps.com/en/developers/api-docs/routes",
       retrievedAt: new Date().toISOString(),
+      freshness: "realtime",
       confidence: "medium",
     };
     const sections = route.sections as BusMapsSection[];

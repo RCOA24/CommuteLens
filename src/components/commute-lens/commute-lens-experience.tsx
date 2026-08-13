@@ -2,10 +2,11 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { Navigation } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { CommuteReadinessResult } from "@/app/api/commute/readiness/route";
 import type { FareConfirmationResult } from "@/app/api/fare-confirmations/route";
 import type { CommuteReadiness } from "@/application/assess-commute-readiness/use-case";
+import type { ResearchedCommuteRoutePlan } from "@/application/research-commute-route/research-route";
 import type { FareConfirmationSummary } from "@/application/fare-confirmation/fare-confirmation.service";
 import type { AnalyzeJobOfferResult } from "@/application/analyze-job-offer/use-case";
 import type { RoutePreviewResult } from "@/app/api/commute/route/route";
@@ -63,15 +64,18 @@ function arrangementDays(arrangement: WorkArrangement, current: number) {
 export function CommuteLensExperience() {
   const reduceMotion = usePrefersReducedMotion();
   const formId = useId();
-  const resultRef = useRef<HTMLDivElement>(null);
   const routeRequestVersion = useRef(0);
   const readinessRequestVersion = useRef(0);
+  const calculationRequestVersion = useRef(0);
 
   const [step, setStep] = useState<Step>("commute");
   const [isIntroVisible, setIsIntroVisible] = useState(true);
   const [origin, setOrigin] = useState<Location | null>(null);
   const [destination, setDestination] = useState<Location | null>(null);
   const [route, setRoute] = useState<CommuteRoute | null>(null);
+  const [routeCandidates, setRouteCandidates] = useState<readonly CommuteRoute[]>([]);
+  const [researchedRoutePlan, setResearchedRoutePlan] =
+    useState<ResearchedCommuteRoutePlan | null>(null);
   const [isDiscoveringRoute, setIsDiscoveringRoute] = useState(false);
   const [commuteError, setCommuteError] = useState<string | null>(null);
 
@@ -89,6 +93,7 @@ export function CommuteLensExperience() {
     [],
   );
   const [offerError, setOfferError] = useState<string | null>(null);
+  const [isCalculationReady, setIsCalculationReady] = useState(false);
 
   const [analysis, setAnalysis] = useState<JobRealityAnalysis | null>(null);
   const [baselineDays, setBaselineDays] = useState(3);
@@ -102,10 +107,17 @@ export function CommuteLensExperience() {
   );
   const [viabilityTargetIncome, setViabilityTargetIncome] = useState(0);
 
+  useLayoutEffect(() => {
+    if (isIntroVisible) return;
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [isIntroVisible, step]);
+
   function invalidateRoute() {
     routeRequestVersion.current += 1;
     readinessRequestVersion.current += 1;
     setRoute(null);
+    setRouteCandidates([]);
+    setResearchedRoutePlan(null);
     setFareConfirmations([]);
     setReadiness(null);
     setReadinessState("idle");
@@ -211,6 +223,7 @@ export function CommuteLensExperience() {
     }
     if (arrangement === "remote") {
       setRoute(null);
+      setRouteCandidates([]);
       setFareConfirmations([]);
       setCommuteError(null);
       setStep("offer");
@@ -219,6 +232,7 @@ export function CommuteLensExperience() {
     const requestVersion = ++routeRequestVersion.current;
     const requestedFareClass = fareClass;
     setCommuteError(null);
+    setResearchedRoutePlan(null);
     setIsDiscoveringRoute(true);
     try {
       const response = await fetch("/api/commute/route", {
@@ -234,8 +248,18 @@ export function CommuteLensExperience() {
         setCommuteError(result.error.message);
         return;
       }
-      setRoute(result.data.route);
-      void loadFareConfirmations(result.data.route, requestedFareClass, requestVersion);
+      const previewRoutes = result.data.routes;
+      const initialRoute = previewRoutes[0];
+      if (!initialRoute) {
+        setRoute(null);
+        setRouteCandidates([]);
+        setFareConfirmations([]);
+        setCommuteError("The transit provider returned no usable route.");
+        return;
+      }
+      setRouteCandidates(previewRoutes);
+      setRoute(initialRoute);
+      void loadFareConfirmations(initialRoute, requestedFareClass, requestVersion);
       setStep("route");
     } catch {
       if (requestVersion === routeRequestVersion.current) {
@@ -246,12 +270,21 @@ export function CommuteLensExperience() {
     }
   }
 
+  function selectPreviewRoute(nextRoute: CommuteRoute) {
+    setRoute(nextRoute);
+    setResearchedRoutePlan(null);
+    setFareConfirmations([]);
+    void loadFareConfirmations(nextRoute, fareClass, routeRequestVersion.current);
+  }
+
   async function calculate() {
     if (!origin || !destination) {
       setOfferError("Choose an origin and destination before calculating.");
       return;
     }
     setOfferError(null);
+    setIsCalculationReady(false);
+    const requestVersion = ++calculationRequestVersion.current;
     setStep("calculating");
 
     const payload = {
@@ -283,9 +316,10 @@ export function CommuteLensExperience() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }),
-        new Promise((resolve) => setTimeout(resolve, reduceMotion ? 120 : 1150)),
+        new Promise((resolve) => setTimeout(resolve, reduceMotion ? 120 : 2100)),
       ]);
       const result = (await response.json()) as AnalyzeJobOfferResult;
+      if (requestVersion !== calculationRequestVersion.current) return;
       if (!result.success) {
         setOfferError(result.error.message);
         setStep("offer");
@@ -297,12 +331,9 @@ export function CommuteLensExperience() {
       setViabilityTargetIncome(Math.max(0, result.data.incomeAfterCommute));
       setScenarioRouteState("idle");
       void loadCommuteReadiness(result.data.commute.route);
-      setStep("reality");
-      setTimeout(
-        () => resultRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }),
-        80,
-      );
+      setIsCalculationReady(true);
     } catch {
+      if (requestVersion !== calculationRequestVersion.current) return;
       setOfferError("Could not reach the analyzer. Check your connection and try again.");
       setStep("offer");
     }
@@ -332,14 +363,30 @@ export function CommuteLensExperience() {
       const result = (await response.json()) as RoutePreviewResult;
       if (requestVersion !== routeRequestVersion.current) return;
       if (!result.success) throw new Error(result.error.message);
-      setRoute(result.data.route);
+      const scenarioRoute = result.data.routes[0];
+      if (!scenarioRoute) throw new Error("The transit provider returned no usable route.");
+      setRouteCandidates(result.data.routes);
+      setRoute(scenarioRoute);
+      setResearchedRoutePlan(null);
       setScenarioDays(next);
-      void loadFareConfirmations(result.data.route, requestedFareClass, requestVersion);
-      void loadCommuteReadiness(result.data.route);
+      void loadFareConfirmations(scenarioRoute, requestedFareClass, requestVersion);
+      void loadCommuteReadiness(scenarioRoute);
       setScenarioRouteState("idle");
     } catch {
       if (requestVersion === routeRequestVersion.current) setScenarioRouteState("error");
     }
+  }
+
+  function returnToOfferFromCalculation() {
+    calculationRequestVersion.current += 1;
+    setIsCalculationReady(false);
+    setStep("offer");
+  }
+
+  function revealReality() {
+    if (!isCalculationReady) return;
+    setIsCalculationReady(false);
+    setStep("reality");
   }
 
   function enterJourney() {
@@ -350,10 +397,13 @@ export function CommuteLensExperience() {
   function reset() {
     routeRequestVersion.current += 1;
     readinessRequestVersion.current += 1;
+    calculationRequestVersion.current += 1;
     setAnalysis(null);
+    setResearchedRoutePlan(null);
     setFareConfirmations([]);
     setReadiness(null);
     setReadinessState("idle");
+    setIsCalculationReady(false);
     setViabilityTargetIncome(0);
     setStep("commute");
     setCommuteError(null);
@@ -444,10 +494,14 @@ export function CommuteLensExperience() {
                 origin={origin}
                 destination={destination}
                 route={route}
+                routes={routeCandidates}
+                researchedRoutePlan={researchedRoutePlan}
                 fareClass={fareClass}
                 reduceMotion={reduceMotion}
                 fareConfirmations={fareConfirmations}
                 onConfirmFare={confirmRouteFare}
+                onRouteSelect={selectPreviewRoute}
+                onResearchedRoutePlanChange={setResearchedRoutePlan}
                 onBack={() => setStep("commute")}
                 onContinue={() => setStep("offer")}
               />
@@ -476,46 +530,53 @@ export function CommuteLensExperience() {
 
           {step === "calculating" && (
             <Stage key="calculating" reduceMotion={reduceMotion}>
-              <CalculatingStage route={route} onsiteDays={onsiteDays} reduceMotion={reduceMotion} />
+              <CalculatingStage
+                route={route}
+                onsiteDays={onsiteDays}
+                reduceMotion={reduceMotion}
+                isReady={isCalculationReady}
+                onBack={returnToOfferFromCalculation}
+                onReveal={revealReality}
+              />
             </Stage>
           )}
 
           {step === "reality" && analysis && scenario && baselineScenario && (
-            <Stage key="reality" reduceMotion={reduceMotion}>
-              <div ref={resultRef}>
-                {/*
-                  A single concise announcement when a result arrives. It reads the
-                  baseline scenario, not the live slider value, so exploring what-ifs
-                  does not turn into a stream of interruptions.
-                */}
-                <p role="status" className="sr-only">
-                  Result ready. Estimated take-home after transport:{" "}
-                  {formatPeso(baselineScenario.incomeAfterCommute)} per month.
-                </p>
-                <RealityStage
-                  analysis={analysis}
-                  scenario={scenario}
-                  commute={scenarioCommute}
-                  baselineDays={baselineDays}
-                  scenarioDays={scenarioDays}
-                  scenarioDelta={diffJobScenarios(baselineScenario, scenario)}
-                  farePolicyImpact={farePolicyImpact}
-                  fareConfirmations={fareConfirmations}
-                  activeScenarioRoute={route}
-                  scenarioRouteState={scenarioRouteState}
-                  readiness={readiness}
-                  readinessState={readinessState}
-                  viabilityPlan={viabilityPlan}
-                  viabilityTargetIncome={viabilityTargetIncome}
-                  onScenarioDaysChange={(days) => void changeScenarioDays(days)}
-                  onViabilityTargetIncomeChange={setViabilityTargetIncome}
-                  reduceMotion={reduceMotion}
-                  onEdit={() => setStep("offer")}
-                  onCompare={() => setStep("compare")}
-                  onPrint={() => window.print()}
-                  onReset={reset}
-                />
-              </div>
+            <Stage key="reality" reduceMotion={reduceMotion} entrance="reveal">
+              {/*
+                A single concise announcement when a result arrives. It reads the
+                baseline scenario, not the live slider value, so exploring what-ifs
+                does not turn into a stream of interruptions.
+              */}
+              <p role="status" className="sr-only">
+                Result ready. Estimated take-home after transport:{" "}
+                {formatPeso(baselineScenario.incomeAfterCommute)} per month.
+              </p>
+              <RealityStage
+                analysis={analysis}
+                scenario={scenario}
+                commute={scenarioCommute}
+                baselineDays={baselineDays}
+                scenarioDays={scenarioDays}
+                scenarioDelta={diffJobScenarios(baselineScenario, scenario)}
+                farePolicyImpact={farePolicyImpact}
+                fareConfirmations={fareConfirmations}
+                researchedRoutePlan={researchedRoutePlan}
+                activeScenarioRoute={route}
+                scenarioRouteState={scenarioRouteState}
+                readiness={readiness}
+                readinessState={readinessState}
+                viabilityPlan={viabilityPlan}
+                viabilityTargetIncome={viabilityTargetIncome}
+                onScenarioDaysChange={(days) => void changeScenarioDays(days)}
+                onViabilityTargetIncomeChange={setViabilityTargetIncome}
+                onResearchedRoutePlanChange={setResearchedRoutePlan}
+                reduceMotion={reduceMotion}
+                onEdit={() => setStep("offer")}
+                onCompare={() => setStep("compare")}
+                onPrint={() => window.print()}
+                onReset={reset}
+              />
             </Stage>
           )}
 
@@ -542,9 +603,10 @@ function Stage({
 }: {
   children: ReactNode;
   reduceMotion: boolean;
-  entrance?: "slide" | "zoom";
+  entrance?: "slide" | "zoom" | "reveal";
 }) {
   const isZoomEntrance = entrance === "zoom";
+  const isRealityReveal = entrance === "reveal";
 
   return (
     <motion.div
@@ -553,14 +615,18 @@ function Stage({
           ? { opacity: 0 }
           : isZoomEntrance
             ? { opacity: 0, scale: 0.9, y: 18 }
-            : { opacity: 0, x: 16 }
+            : isRealityReveal
+              ? { opacity: 0, scale: 0.97, y: 32 }
+              : { opacity: 0, x: 16 }
       }
       animate={
-        isZoomEntrance ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }
+        isZoomEntrance || isRealityReveal
+          ? { opacity: 1, scale: 1, y: 0 }
+          : { opacity: 1, x: 0 }
       }
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
       transition={{
-        duration: reduceMotion ? 0.08 : isZoomEntrance ? 0.46 : 0.28,
+        duration: reduceMotion ? 0.08 : isRealityReveal ? 0.62 : isZoomEntrance ? 0.46 : 0.28,
         ease: [0.22, 1, 0.36, 1],
       }}
     >

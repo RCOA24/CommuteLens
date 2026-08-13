@@ -2,11 +2,13 @@
 import {
   ArrowRightLeft,
   CircleAlert,
+  Cloud,
   CloudRain,
   Footprints,
   Info,
   LoaderCircle,
   MapPinned,
+  Sun,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CommuteReadiness } from "@/application/assess-commute-readiness/use-case";
@@ -21,53 +23,104 @@ export function CommuteReadinessCard({
 }) {
   if (state === "loading") return <LoadingCard />;
   if (!readiness || state === "unavailable") return <UnavailableCard />;
+
+  const weatherVisual = classifyWeather(readiness);
+
   return (
-    <section className="app-panel p-5 sm:p-6 print:hidden">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <Eyebrow>Commute readiness · {readiness.travelDate}</Eyebrow>
-          <h2 className="mt-2 font-headline text-2xl leading-none font-black tracking-[-0.03em] sm:text-3xl">
-            {levelHeading(readiness.level)}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-            {levelMessage(readiness)}
-          </p>
+    <section
+      className="app-panel commute-readiness-weather relative isolate overflow-hidden p-5 sm:p-6 print:hidden"
+      data-weather={weatherVisual}
+    >
+      <WeatherScene visual={weatherVisual} />
+      <div className="relative z-[1]">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Eyebrow>Commute readiness · {readiness.travelDate}</Eyebrow>
+            <h2 className="mt-2 font-headline text-2xl leading-none font-black tracking-[-0.03em] sm:text-3xl">
+              {levelHeading(readiness.level)}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+              {levelMessage(readiness)}
+            </p>
+          </div>
+          <ReadinessBadge level={readiness.level} />
+        </header>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <WeatherContext readiness={readiness} visual={weatherVisual} />
+          <RouteFriction readiness={readiness} />
         </div>
-        <ReadinessBadge level={readiness.level} />
-      </header>
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <WeatherContext readiness={readiness} />
-        <RouteFriction readiness={readiness} />
+        <section className="mt-4 flex items-start gap-3 rounded-[0.9rem] bg-mint/60 p-4 backdrop-blur-[2px]">
+          <MapPinned className="mt-0.5 size-4 shrink-0 text-leaf" aria-hidden="true" />
+          <div>
+            <h3 className="text-[0.7rem] font-black tracking-[0.1em] uppercase">Hazard context</h3>
+            <p className="mt-1 text-[0.78rem] leading-relaxed text-ink/70">
+              {readiness.hazard.message}
+            </p>
+          </div>
+        </section>
+        <footer className="mt-4 flex items-start gap-2 border-t border-ink/10 pt-3 text-[0.68rem] leading-relaxed text-muted">
+          <Info className="mt-0.5 size-3.5 shrink-0 text-flame" aria-hidden="true" />
+          <span>
+            Readiness describes forecast conditions and the selected route&apos;s observed details. It
+            is not an arrival guarantee, a safety rating, or a flood prediction.
+            {readiness.sources[0]
+              ? ` Weather source: ${readiness.sources[0].name}, retrieved ${formatTimestamp(readiness.sources[0].retrievedAt)}.`
+              : " Weather context is not currently available."}
+          </span>
+        </footer>
       </div>
-      <section className="mt-4 flex items-start gap-3 rounded-[0.9rem] bg-mint/45 p-4">
-        <MapPinned className="mt-0.5 size-4 shrink-0 text-leaf" aria-hidden="true" />
-        <div>
-          <h3 className="text-[0.7rem] font-black tracking-[0.1em] uppercase">Hazard context</h3>
-          <p className="mt-1 text-[0.78rem] leading-relaxed text-ink/70">
-            {readiness.hazard.message}
-          </p>
-        </div>
-      </section>
-      <footer className="mt-4 flex items-start gap-2 border-t border-ink/10 pt-3 text-[0.68rem] leading-relaxed text-muted">
-        <Info className="mt-0.5 size-3.5 shrink-0 text-flame" aria-hidden="true" />
-        <span>
-          Readiness describes forecast conditions and the selected route&apos;s observed details. It
-          is not an arrival guarantee, a safety rating, or a flood prediction.
-          {readiness.sources[0]
-            ? ` Weather source: ${readiness.sources[0].name}, retrieved ${formatTimestamp(readiness.sources[0].retrievedAt)}.`
-            : " Weather context is not currently available."}
-        </span>
-      </footer>
     </section>
   );
 }
-function WeatherContext({ readiness }: { readiness: CommuteReadiness }) {
+
+type WeatherVisual = "rain" | "cloud" | "sun" | "heat" | "neutral";
+
+function WeatherScene({ visual }: { visual: WeatherVisual }) {
+  return (
+    <div className="commute-weather-scene" data-weather={visual} aria-hidden="true">
+      <span className="commute-weather-orb" />
+      <span className="commute-weather-cloud commute-weather-cloud-a" />
+      <span className="commute-weather-cloud commute-weather-cloud-b" />
+      <span className="commute-weather-rain" />
+      <span className="commute-weather-heat" />
+    </div>
+  );
+}
+
+function classifyWeather(readiness: CommuteReadiness): WeatherVisual {
+  const weather = readiness.weather;
+  if (weather.availability !== "available" || !weather.forecast) return "neutral";
+
+  const forecast = weather.forecast;
+  const rainfallDescription = forecast.rainfallDescription.toLowerCase();
+  const cloudCover = forecast.cloudCover?.toLowerCase() ?? "";
+  const explicitlyDry = /\b(?:no|none|zero)\b.*\brain/.test(rainfallDescription);
+
+  if (forecast.rainfallMillimetres > 0 || !explicitlyDry) return "rain";
+  if (/\b(?:overcast|cloudy|mostly cloudy)\b/.test(cloudCover)) return "cloud";
+  if ((forecast.maximumTemperatureCelsius ?? 0) >= 35) return "heat";
+  if (/\b(?:clear|sunny|fair|few clouds?|partly cloudy|scattered clouds?)\b/.test(cloudCover)) {
+    return "sun";
+  }
+  return "neutral";
+}
+
+function weatherIcon(visual: WeatherVisual) {
+  if (visual === "rain") return <CloudRain className="size-3.5 text-flame" aria-hidden="true" />;
+  if (visual === "cloud") return <Cloud className="size-3.5 text-flame" aria-hidden="true" />;
+  if (visual === "sun" || visual === "heat") {
+    return <Sun className="size-3.5 text-flame" aria-hidden="true" />;
+  }
+  return <CloudRain className="size-3.5 text-flame" aria-hidden="true" />;
+}
+
+function WeatherContext({ readiness, visual }: { readiness: CommuteReadiness; visual: WeatherVisual }) {
   const weather = readiness.weather;
   if (weather.availability !== "available" || !weather.forecast) {
     return (
       <section className="rounded-[0.9rem] border border-ink/10 p-4">
         <h3 className="flex items-center gap-2 text-[0.68rem] font-black tracking-[0.1em] uppercase">
-          <CloudRain className="size-3.5 text-flame" aria-hidden="true" /> Weather context
+          {weatherIcon(visual)} Weather context
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-muted">{weather.message}</p>
       </section>
@@ -77,7 +130,7 @@ function WeatherContext({ readiness }: { readiness: CommuteReadiness }) {
   return (
     <section className="rounded-[0.9rem] border border-ink/10 p-4">
       <h3 className="flex items-center gap-2 text-[0.68rem] font-black tracking-[0.1em] uppercase">
-        <CloudRain className="size-3.5 text-flame" aria-hidden="true" /> PAGASA daily forecast
+        {weatherIcon(visual)} PAGASA daily forecast
       </h3>
       <p className="mt-2 text-sm font-bold">{forecast.areaLabel}</p>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -253,7 +306,7 @@ function LoadingCard() {
       className="app-panel flex items-center gap-3 p-5 text-sm text-muted print:hidden"
       aria-live="polite"
     >
-      <LoaderCircle className="size-4 animate-spin text-flame" aria-hidden="true" />
+      <LoaderCircle className="size-4 motion-safe:animate-spin text-flame" aria-hidden="true" />
       Checking PAGASA weather context and route friction…
     </section>
   );

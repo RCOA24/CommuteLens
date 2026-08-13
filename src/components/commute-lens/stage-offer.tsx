@@ -1,24 +1,16 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  Blend,
-  Building2,
-  ChevronDown,
-  House,
-  Info,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Info } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ActionButton } from "@/components/ui/action-button";
-import { ChoiceGroup, DayCountGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { CurrencyField, FormAlert, TextField, UnitField } from "@/components/ui/fields";
 import { Eyebrow, SectionHeading } from "@/components/ui/typography";
 import { calculateCommute } from "@/domain/commute/calculations";
-import { estimateTakeHomePay } from "@/domain/finance/calculations";
-import type { CommuteRoute, Location, WorkArrangement } from "@/domain/models";
+import { DEFAULT_PAYROLL_DEDUCTIONS } from "@/domain/finance/philippine-payroll";
+import type { CommuteRoute, Location } from "@/domain/models";
+import { DEFAULT_HYBRID_SCHEDULE, countOnsiteDays, countWorkingDays } from "@/domain/work-schedule";
 import { formatMinutes, formatNumber, formatPeso, shortPlace } from "./format";
+import { PayrollDeductionSelector } from "./payroll-deduction-selector";
 import {
   firstErrorField,
   summariseErrors,
@@ -28,12 +20,7 @@ import {
 } from "./offer-validation";
 import { describeRouteStatus } from "./provenance";
 import { RouteStatusBadge } from "./route-status-badge";
-
-const ARRANGEMENT_OPTIONS: readonly ChoiceOption<WorkArrangement>[] = [
-  { value: "remote", title: "Remote", note: "No office days.", icon: <House /> },
-  { value: "hybrid", title: "Hybrid", note: "A few office days.", icon: <Blend /> },
-  { value: "onsite", title: "Onsite", note: "Every working day.", icon: <Building2 /> },
-];
+import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
 
 /**
  * Stage three. Four named sections, one question per line, and inline
@@ -46,10 +33,6 @@ export function OfferDetailsStage({
   route,
   draft,
   onDraftChange,
-  arrangement,
-  onArrangementChange,
-  onsiteDays,
-  onOnsiteDaysChange,
   serverError,
   onBack,
   onSubmit,
@@ -60,10 +43,6 @@ export function OfferDetailsStage({
   route: CommuteRoute | null;
   draft: OfferDraft;
   onDraftChange: (patch: Partial<OfferDraft>) => void;
-  arrangement: WorkArrangement;
-  onArrangementChange: (arrangement: WorkArrangement) => void;
-  onsiteDays: number;
-  onOnsiteDaysChange: (days: number) => void;
   serverError: string | null;
   onBack: () => void;
   onSubmit: () => void;
@@ -72,7 +51,6 @@ export function OfferDetailsStage({
   const [attempted, setAttempted] = useState(false);
 
   const errors = validateOfferDraft(draft);
-  const isRemote = arrangement === "remote";
   const status = describeRouteStatus(route);
 
   function errorFor(field: OfferField) {
@@ -96,20 +74,12 @@ export function OfferDetailsStage({
 
   const summary = attempted ? summariseErrors(errors) : null;
 
-  /*
-   * Both previews come from the domain layer rather than from arithmetic here:
-   * `calculateCommute` owns the weeks-per-month assumption and
-   * `estimateTakeHomePay` owns the rate band. The UI only decides when it is
-   * safe to render them.
-   */
-  const officeDaysPerMonth = calculateCommute(route, isRemote ? 0 : onsiteDays).officeDaysPerMonth;
-  const takeHomeRate = Number(draft.takeHomePercent) / 100;
+  const weeklySchedule = draft.weeklySchedule ?? { ...DEFAULT_HYBRID_SCHEDULE };
+  const onsiteDays = countOnsiteDays(weeklySchedule);
+  const workingDays = countWorkingDays(weeklySchedule);
+  const officeDaysPerMonth = calculateCommute(route, onsiteDays).officeDaysPerMonth;
   const salaryValue = Number(draft.salary);
-  const canPreviewTakeHome =
-    !errors.salary && !errors.takeHomePercent && salaryValue > 0 && takeHomeRate >= 0.5;
-  const takeHomePreview = canPreviewTakeHome
-    ? estimateTakeHomePay(salaryValue, takeHomeRate)
-    : null;
+  const payrollDeductions = draft.payrollDeductions ?? DEFAULT_PAYROLL_DEDUCTIONS;
 
   return (
     <div className="mx-auto grid max-w-5xl gap-8 pt-6 lg:grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)] lg:gap-12 lg:pt-10">
@@ -187,8 +157,8 @@ export function OfferDetailsStage({
         <hr className="my-8 border-ink/10" />
         <SectionHeading
           step={2}
-          title="Compensation"
-          description="The advertised number, plus your own estimate of what actually reaches your account."
+          title="Compensation and deductions"
+          description="Enter the advertised salary, then match the Philippine employee deductions included in the offer."
         />
         <div className="mt-5 grid gap-5">
           <CurrencyField
@@ -200,41 +170,15 @@ export function OfferDetailsStage({
             error={errorFor("salary")}
             hint={
               salaryValue > 0 && !errors.salary
-                ? `${formatPeso(salaryValue)} before deductions.`
-                : "The headline figure on the offer, before deductions."
+                ? `${formatPeso(salaryValue)} before employee deductions.`
+                : "The headline figure on the offer, before employee deductions."
             }
           />
-          <div className="app-inset p-4 sm:p-5">
-            <div className="grid gap-5 sm:grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] sm:items-start">
-              <UnitField
-                id={`${idPrefix}-takeHomePercent`}
-                label="Take-home"
-                unit="%"
-                value={draft.takeHomePercent}
-                onChange={(takeHomePercent) => onDraftChange({ takeHomePercent })}
-                onBlur={() => markTouched("takeHomePercent")}
-                error={errorFor("takeHomePercent")}
-              />
-              <div className="min-w-0 text-xs leading-relaxed text-muted">
-                <p>
-                  The share of gross pay that lands in your account after SSS, PhilHealth, Pag-IBIG,
-                  and withholding tax. Move it to match your latest payslip.
-                </p>
-                {takeHomePreview !== null && (
-                  <p className="mt-2.5 flex items-center gap-1.5 text-sm font-bold text-ink">
-                    <Sparkles className="size-3.5 shrink-0 text-flame" aria-hidden="true" />
-                    <span className="numeric">
-                      ≈ {formatPeso(takeHomePreview)} estimated take-home
-                    </span>
-                  </p>
-                )}
-                <p className="mt-2 text-[0.68rem]">
-                  This is your estimate, not a tax computation. Commute Lens does not file anything
-                  for you.
-                </p>
-              </div>
-            </div>
-          </div>
+          <PayrollDeductionSelector
+            salary={!errors.salary && salaryValue > 0 ? salaryValue : 0}
+            value={payrollDeductions}
+            onChange={(payrollDeductions) => onDraftChange({ payrollDeductions })}
+          />
         </div>
 
         {/* 3 — Work schedule */}
@@ -245,34 +189,18 @@ export function OfferDetailsStage({
           description="How often you travel decides how much of the salary the commute takes."
         />
         <div className="mt-5 grid gap-5">
-          <ChoiceGroup
-            name={`${idPrefix}-offer-arrangement`}
-            legend="Work arrangement"
-            value={arrangement}
-            options={ARRANGEMENT_OPTIONS}
-            onChange={onArrangementChange}
+          <WeeklyScheduleEditor
+            value={weeklySchedule}
+            onChange={(weeklySchedule) => onDraftChange({ weeklySchedule })}
           />
-          {isRemote ? (
-            <p className="flex items-start gap-2.5 rounded-[1.1rem] border border-leaf/25 bg-leaf/8 p-3.5 text-xs leading-relaxed">
-              <House className="mt-0.5 size-4 shrink-0 text-leaf" aria-hidden="true" />
-              <span>
-                Remote means zero office days, so transport cost and commute time are both zero. You
-                can still try onsite weeks in the scenario explorer after calculating.
-              </span>
-            </p>
-          ) : (
-            <DayCountGroup
-              name={`${idPrefix}-onsite-days`}
-              legend="Office days per week"
-              value={onsiteDays}
-              onChange={onOnsiteDaysChange}
-              hint={
-                <span className="numeric">
-                  ≈ {formatNumber(officeDaysPerMonth)} office days a month.
-                </span>
-              }
-            />
-          )}
+          <p className="rounded-[1rem] bg-mint/35 p-3 text-xs leading-relaxed text-muted">
+            <strong className="font-black text-ink">
+              {onsiteDays} onsite · {workingDays - onsiteDays} WFH · {7 - workingDays} off
+            </strong>
+            <span className="numeric block mt-1">
+              ≈ {formatNumber(officeDaysPerMonth)} office trips per month before return journeys.
+            </span>
+          </p>
           <UnitField
             id={`${idPrefix}-workingHours`}
             label="Paid hours per day"
@@ -312,8 +240,9 @@ export function OfferDetailsStage({
                 value, which divides money by paid hours plus commute hours.
               </li>
               <li>
-                Take-home uses the percentage you set above. It is a disclosed estimate, not a
-                payroll or tax calculation.
+                Take-home uses the selected Philippine employee deductions and current published
+                contribution/tax tables. It remains an estimate because actual payroll can include
+                bonuses, loans, allowances, and employer-specific rounding.
               </li>
             </ul>
           </details>

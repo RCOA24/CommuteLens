@@ -3,7 +3,7 @@ import {
   calculateCommuteBurden,
   calculateEffectiveHourlyValue,
   calculateMonthlyWorkHours,
-  estimateTakeHomePay,
+  calculateTakeHomePay,
 } from "@/domain/finance/calculations";
 import type { CommuteRoute, JobRealityAnalysis } from "@/domain/models";
 
@@ -14,13 +14,18 @@ export function calculateJobScenario(
   route: CommuteRoute | null = analysis.commute.route,
 ) {
   const commute = calculateCommute(route, onsiteDaysPerWeek);
-  const estimatedTakeHomePay = estimateTakeHomePay(
-    analysis.jobOffer.monthlySalary,
-    analysis.jobOffer.estimatedTakeHomeRate,
-  );
+  const estimatedTakeHomePay = calculateTakeHomePay({
+    monthlySalary: analysis.jobOffer.monthlySalary,
+    payrollDeductions: analysis.jobOffer.payrollDeductions,
+    estimatedTakeHomeRate: analysis.jobOffer.estimatedTakeHomeRate,
+  });
   const incomeAfterCommute = estimatedTakeHomePay - commute.monthlyFare;
   const monthlyCommuteHours = commute.monthlyMinutes / 60;
-  const monthlyWorkHours = calculateMonthlyWorkHours(analysis.jobOffer.workingHoursPerDay);
+  const workingDaysPerWeek = analysis.jobOffer.workingDaysPerWeek ?? 5;
+  const monthlyWorkHours = calculateMonthlyWorkHours(
+    analysis.jobOffer.workingHoursPerDay,
+    workingDaysPerWeek,
+  );
 
   return {
     days: onsiteDaysPerWeek,
@@ -36,6 +41,7 @@ export function calculateJobScenario(
     effectiveHourlyValue: calculateEffectiveHourlyValue({
       incomeAfterCommute,
       workingHoursPerDay: analysis.jobOffer.workingHoursPerDay,
+      workingDaysPerWeek,
       monthlyCommuteHours,
     }),
     monthlyWorkHours,

@@ -6,9 +6,7 @@ import type { CommuteRoute, JobRealityAnalysis } from "@/domain/models";
 import { TAKE_HOME_ASSUMPTIONS } from "@/shared/constants/assumptions";
 import { calculateJobScenario, type JobScenario } from "./scenario";
 
-const ONSITE_DAYS = [0, 1, 2, 3, 4, 5] as const;
-
-export type OnsiteDaysPerWeek = (typeof ONSITE_DAYS)[number];
+export type OnsiteDaysPerWeek = number;
 
 /**
  * One viable working-arrangement option. Allowance is modeled as a net monthly
@@ -28,9 +26,10 @@ export interface CommuteViabilityRow {
   grossSalaryDeltaFromCurrent: number;
 }
 
-/** A deterministic set of all permitted 0–5 office-day arrangements. */
+/** A deterministic set of every onsite count permitted by the actual working week. */
 export interface CommuteViabilityPlan {
   targetIncomeAfterCommute: number;
+  workingDaysPerWeek: number;
   maximumSustainableOnsiteDays: OnsiteDaysPerWeek | null;
   rows: readonly CommuteViabilityRow[];
 }
@@ -49,7 +48,9 @@ export function calculateCommuteViabilityPlan(input: {
 
   const estimatedTakeHomeRate =
     input.analysis.jobOffer.estimatedTakeHomeRate ?? TAKE_HOME_ASSUMPTIONS.estimatedRate;
-  const rows = ONSITE_DAYS.map((onsiteDaysPerWeek) => {
+  const workingDaysPerWeek = input.analysis.jobOffer.workingDaysPerWeek ?? 5;
+  const onsiteDayOptions = Array.from({ length: workingDaysPerWeek + 1 }, (_, day) => day);
+  const rows = onsiteDayOptions.map((onsiteDaysPerWeek) => {
     const scenario = calculateJobScenario(input.analysis, onsiteDaysPerWeek, input.route);
     const requiredMonthlyCommuteAllowance = Math.max(
       0,
@@ -59,6 +60,7 @@ export function calculateCommuteViabilityPlan(input: {
       targetIncomeAfterCommute: input.targetIncomeAfterCommute,
       monthlyCommuteFare: scenario.monthlyFare,
       estimatedTakeHomeRate,
+      payrollDeductions: input.analysis.jobOffer.payrollDeductions,
     };
     const requiredGrossMonthlySalary = calculateRequiredGrossSalary(salaryInput);
 
@@ -80,6 +82,7 @@ export function calculateCommuteViabilityPlan(input: {
 
   return {
     targetIncomeAfterCommute: input.targetIncomeAfterCommute,
+    workingDaysPerWeek,
     maximumSustainableOnsiteDays: feasibleRows.at(-1)?.onsiteDaysPerWeek ?? null,
     rows,
   };

@@ -71,7 +71,9 @@ function RouteChoices({
   const [recommendation, setRecommendation] = useState<CommuteRouteRecommendation | null>(null);
   const [isRecommending, setIsRecommending] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
-  const providerRoutes = routes.filter((candidate) => getCommuteGuideEligibility(candidate).isEligible);
+  const providerRoutes = routes.filter(
+    (candidate) => getCommuteGuideEligibility(candidate).isEligible,
+  );
   const estimatedOnly = routes.length > 0 && providerRoutes.length === 0;
 
   async function requestRecommendation() {
@@ -160,10 +162,14 @@ function RouteChoices({
               <span className="numeric mt-3 block font-headline text-xl font-black">
                 {formatMinutes(candidate.oneWayDurationMinutes)}
               </span>
-              <span className={`numeric mt-1 block text-xs ${isSelected ? "text-paper/70" : "text-muted"}`}>
+              <span
+                className={`numeric mt-1 block text-xs ${isSelected ? "text-paper/70" : "text-muted"}`}
+              >
                 {formatPeso(candidate.oneWayFare)} · {transferLabel(candidate.transfers)}
               </span>
-              <span className={`mt-2 block text-[0.67rem] leading-snug ${isSelected ? "text-paper/70" : "text-muted"}`}>
+              <span
+                className={`mt-2 block text-[0.67rem] leading-snug ${isSelected ? "text-paper/70" : "text-muted"}`}
+              >
                 {status.kind === "live"
                   ? `${candidate.segments.map((segment) => segment.mode).join(" → ")}`
                   : status.label}
@@ -173,8 +179,18 @@ function RouteChoices({
         })}
       </div>
 
-      <div className="border-t border-ink/10 p-5">
-        <ActionButton variant="secondary" onClick={() => void requestRecommendation()} disabled={isRecommending}>
+      <div className="ai-module-inset m-4 p-4 sm:p-5">
+        <span className="ai-badge">
+          <Sparkles className="size-3" aria-hidden="true" /> Optional AI · ranks existing options
+        </span>
+        <p className="mt-2 mb-3 max-w-xl text-xs leading-relaxed text-muted">
+          AI compares only the provider options above. It cannot create or reprice a route.
+        </p>
+        <ActionButton
+          variant="secondary"
+          onClick={() => void requestRecommendation()}
+          disabled={isRecommending}
+        >
           {isRecommending ? (
             <>
               <LoaderCircle className="size-3.5 motion-safe:animate-spin" aria-hidden="true" />
@@ -193,7 +209,11 @@ function RouteChoices({
               {recommendation.text}
             </p>
           )}
-          {recommendationError && <p role="alert" className="field-error mt-3">{recommendationError}</p>}
+          {recommendationError && (
+            <p role="alert" className="field-error mt-3">
+              {recommendationError}
+            </p>
+          )}
         </div>
       </div>
     </section>
@@ -264,7 +284,11 @@ export function RoutePreviewStage({
             icon={<Clock3 />}
             label="One way"
             value={formatMinutes(route.oneWayDurationMinutes)}
-            detail={status.kind === "estimated" ? "Distance-based estimate, not an itinerary" : "From the provider itinerary"}
+            detail={
+              status.kind === "estimated"
+                ? "Distance-based estimate, not an itinerary"
+                : "From the provider itinerary"
+            }
           />
           <Fact
             icon={<Wallet />}
@@ -283,10 +307,10 @@ export function RoutePreviewStage({
             }
           />
         </dl>
-        <div className="flex flex-wrap items-start gap-3 border-t border-ink/10 bg-canvas/60 p-5">
-          <RouteStatusBadge status={status} />
+        <div className="flex flex-col items-stretch gap-3 border-t border-ink/10 bg-canvas/60 p-5 sm:flex-row sm:flex-wrap sm:items-start">
+          <RouteStatusBadge className="w-fit max-w-full shrink-0" status={status} />
           {fareDiscount.rate > 0 && (
-            <span className="status-chip" data-tone="neutral">
+            <span className="status-chip w-fit max-w-full shrink-0" data-tone="neutral">
               <BadgePercent className="size-3.5 shrink-0" aria-hidden="true" />
               {fareDiscount.shortLabel} · −{Math.round(fareDiscount.rate * 100)}%
             </span>

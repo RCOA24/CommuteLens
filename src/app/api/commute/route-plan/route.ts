@@ -9,6 +9,9 @@ import { checkRateLimit } from "@/shared/security/rate-limit";
 import type { ApiResult } from "@/shared/types/api";
 import { commuteRouteSchema } from "@/shared/validation/domain-schemas";
 
+export const runtime = "nodejs";
+export const maxDuration = 90;
+
 const MAX_BODY_CHARACTERS = 48_000;
 const requestSchema = z.object({ route: commuteRouteSchema });
 

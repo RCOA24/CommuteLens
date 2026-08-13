@@ -4,8 +4,9 @@ import {
   calculateCommuteBurden,
   calculateEffectiveHourlyValue,
   calculateMonthlyWorkHours,
-  estimateTakeHomePay,
+  calculateTakeHomePay,
 } from "@/domain/finance/calculations";
+import { estimatePhilippinePayroll } from "@/domain/finance/philippine-payroll";
 import type { JobRealityAnalysis } from "@/domain/models";
 import type { TransitProvider } from "@/providers/transit/transit-provider";
 import { commuteRouteSchema } from "@/shared/validation/domain-schemas";
@@ -116,13 +117,21 @@ export class AnalyzeJobOfferUseCase {
     }
 
     const commute = calculateCommute(route, jobOffer.onsiteDaysPerWeek);
-    const estimatedTakeHomePay = estimateTakeHomePay(
-      jobOffer.monthlySalary,
-      jobOffer.estimatedTakeHomeRate,
-    );
+    const payrollEstimate = jobOffer.payrollDeductions
+      ? estimatePhilippinePayroll(jobOffer.monthlySalary, jobOffer.payrollDeductions)
+      : undefined;
+    const estimatedTakeHomePay = calculateTakeHomePay({
+      monthlySalary: jobOffer.monthlySalary,
+      payrollDeductions: jobOffer.payrollDeductions,
+      estimatedTakeHomeRate: jobOffer.estimatedTakeHomeRate,
+    });
     const incomeAfterCommute = estimatedTakeHomePay - commute.monthlyFare;
     const monthlyCommuteHours = commute.monthlyMinutes / 60;
-    const monthlyWorkHours = calculateMonthlyWorkHours(jobOffer.workingHoursPerDay);
+    const workingDaysPerWeek = jobOffer.workingDaysPerWeek ?? 5;
+    const monthlyWorkHours = calculateMonthlyWorkHours(
+      jobOffer.workingHoursPerDay,
+      workingDaysPerWeek,
+    );
 
     return {
       success: true,
@@ -131,6 +140,7 @@ export class AnalyzeJobOfferUseCase {
         jobOffer,
         fareDiscountClass: discountClass,
         commute,
+        payrollEstimate,
         estimatedTakeHomePay,
         incomeAfterCommute,
         commuteBurdenPercentage: calculateCommuteBurden(commute.monthlyFare, estimatedTakeHomePay),
@@ -140,6 +150,7 @@ export class AnalyzeJobOfferUseCase {
         effectiveHourlyValue: calculateEffectiveHourlyValue({
           incomeAfterCommute,
           workingHoursPerDay: jobOffer.workingHoursPerDay,
+          workingDaysPerWeek,
           monthlyCommuteHours,
         }),
         sources: route?.sources ?? [],

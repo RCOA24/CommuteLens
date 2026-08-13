@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { ChevronDown, CircleAlert } from "lucide-react";
+import type { Ref } from "react";
 import {
   FARE_MATRIX_CHECKED_ON,
   ROAD_DISTANCE_FACTOR,
@@ -11,6 +12,7 @@ import {
 import type { FareConfirmationSummary } from "@/application/fare-confirmation/fare-confirmation.service";
 import type { CommuteRoute, JobRealityAnalysis } from "@/domain/models";
 import type { JobScenario } from "@/domain/job/scenario";
+import { compactScheduleLabel } from "@/domain/work-schedule";
 import { AnimatedCurrency } from "./animated-currency";
 import { formatHours, formatPeso, formatPercent, scheduleLabel } from "./format";
 import { describeRouteStatus } from "./provenance";
@@ -29,22 +31,34 @@ export function RealityReceipt({
   fareConfirmations = [],
   route,
   reduceMotion,
+  captureRef,
+  exportMode = false,
 }: {
   analysis: JobRealityAnalysis;
   scenario: JobScenario;
   fareConfirmations?: readonly FareConfirmationSummary[];
   route?: CommuteRoute | null;
   reduceMotion: boolean;
+  captureRef?: Ref<HTMLElement>;
+  exportMode?: boolean;
 }) {
   const status = describeRouteStatus(route ?? analysis.commute.route);
+  const payroll = analysis.payrollEstimate;
   const takeHomePercent = Math.round((analysis.jobOffer.estimatedTakeHomeRate ?? 0.9) * 100);
   const fareDiscount = describeFareDiscount(analysis.fareDiscountClass);
   const confirmedFareLegs = fareConfirmations.filter(
     (item) => item.status === "community-submitted",
   );
+  const workingDaysPerWeek = analysis.jobOffer.workingDaysPerWeek ?? 5;
+  const enteredOnsiteDays = analysis.jobOffer.onsiteDaysPerWeek;
+  const displayedSchedule =
+    scenario.days === enteredOnsiteDays && analysis.jobOffer.weeklySchedule
+      ? compactScheduleLabel(analysis.jobOffer.weeklySchedule)
+      : scheduleLabel(scenario.days, workingDaysPerWeek);
 
   return (
     <motion.section
+      ref={captureRef}
       initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -69,7 +83,7 @@ export function RealityReceipt({
         <p className="mt-2 text-[0.72rem] leading-relaxed text-muted break-words">
           {analysis.jobOffer.officeLocation.label}
         </p>
-        <p className="mt-1 text-[0.72rem] font-bold">{scheduleLabel(scenario.days)}</p>
+        <p className="mt-1 text-[0.72rem] font-bold">{displayedSchedule}</p>
 
         <div className="receipt-rule" aria-hidden="true" />
 
@@ -78,8 +92,16 @@ export function RealityReceipt({
             <span>Gross salary</span>
             <span>{formatPeso(analysis.jobOffer.monthlySalary)}</span>
           </div>
+          {payroll?.deductions.map((deduction) => (
+            <div key={deduction.id} className="receipt-row text-muted">
+              <span>{deduction.label}</span>
+              <span>−{formatPeso(deduction.amount)}</span>
+            </div>
+          ))}
           <div className="receipt-row text-muted">
-            <span>Estimated take-home ({takeHomePercent}%)</span>
+            <span>
+              {payroll ? "Estimated take-home" : `Estimated take-home (${takeHomePercent}%)`}
+            </span>
             <span>{formatPeso(scenario.estimatedTakeHomePay)}</span>
           </div>
           <div className="receipt-row text-muted">
@@ -145,7 +167,9 @@ export function RealityReceipt({
           </p>
         )}
 
-        <details className="mt-5 border-t border-dashed border-ink/25 pt-3 print:hidden">
+        <details
+          className={`mt-5 border-t border-dashed border-ink/25 pt-3 print:hidden ${exportMode ? "hidden" : ""}`}
+        >
           <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 text-[0.72rem] font-bold">
             How we calculated this
             <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
@@ -162,7 +186,9 @@ export function RealityReceipt({
         </details>
 
         {/* Closed <details> elements do not print, so paper gets its own copy. */}
-        <div className="mt-4 hidden border-t border-dashed border-ink/25 pt-3 print:block">
+        <div
+          className={`mt-4 border-t border-dashed border-ink/25 pt-3 ${exportMode ? "block" : "hidden print:block"}`}
+        >
           <p className="text-[0.6rem] font-bold uppercase">How we calculated this</p>
           <CalculationNotes
             takeHomePercent={takeHomePercent}
@@ -205,10 +231,19 @@ function CalculationNotes({
 }) {
   return (
     <div className="mt-2 space-y-2 text-[0.66rem] leading-relaxed text-muted">
-      <p>
-        Take-home is your own estimate of {takeHomePercent}% of gross salary. It is not a payroll or
-        tax calculation.
-      </p>
+      {analysis.payrollEstimate ? (
+        <p>
+          Take-home subtracts the selected SSS, PhilHealth, Pag-IBIG, and BIR employee amounts using
+          the {analysis.payrollEstimate.policyLabel} tables checked{" "}
+          {analysis.payrollEstimate.checkedOn}. Actual payroll can differ because of bonuses, loans,
+          allowances, timing, and rounding.
+        </p>
+      ) : (
+        <p>
+          Take-home uses the legacy estimate of {takeHomePercent}% of gross salary. It is not a
+          payroll or tax calculation.
+        </p>
+      )}
       <p>
         Fares are priced per leg from an estimated road distance ({ROAD_DISTANCE_FACTOR}x
         straight-line), using the LTFRB jeepney matrix where it applies and Commute Lens estimated

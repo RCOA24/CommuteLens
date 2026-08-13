@@ -30,6 +30,7 @@ export function calculateJobBreakEvenSalary(
     targetIncomeAfterCommute,
     monthlyCommuteFare: analysis.commute.monthlyFare,
     estimatedTakeHomeRate,
+    payrollDeductions: analysis.jobOffer.payrollDeductions,
   };
   const requiredGrossMonthlySalary = calculateRequiredGrossSalary(input);
   const minimumGrossMonthlySalary = minimumRequiredGrossSalary(input);

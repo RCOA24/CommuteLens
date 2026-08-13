@@ -1,5 +1,6 @@
 "use client";
 
+import { toPng } from "html-to-image";
 import { motion } from "motion/react";
 import {
   ArrowLeft,
@@ -8,14 +9,15 @@ import {
   Clock3,
   Gauge,
   Hourglass,
+  ImageDown,
   Info,
+  LoaderCircle,
   Plus,
-  Printer,
   RotateCcw,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { toExplainAnalysisRequest } from "@/shared/contracts/explanation";
 import type { CommuteReadiness } from "@/application/assess-commute-readiness/use-case";
 import type { ResearchedCommuteRoutePlan } from "@/application/research-commute-route/research-route";
@@ -82,7 +84,6 @@ export function RealityStage({
   reduceMotion,
   onEdit,
   onCompare,
-  onPrint,
   onReset,
 }: {
   analysis: JobRealityAnalysis;
@@ -106,7 +107,6 @@ export function RealityStage({
   reduceMotion: boolean;
   onEdit: () => void;
   onCompare: () => void;
-  onPrint: () => void;
   onReset: () => void;
 }) {
   const activeRoute = activeScenarioRoute ?? analysis.commute.route;
@@ -117,12 +117,46 @@ export function RealityStage({
   const fareDiscount = describeFareDiscount(analysis.fareDiscountClass);
   const fareEvidence = fareConfirmations.filter((item) => item.reportCount > 0);
   const confirmedFareLegs = fareEvidence.filter((item) => item.status === "community-submitted");
+  const receiptRef = useRef<HTMLElement | null>(null);
+  const [isExportingReceipt, setIsExportingReceipt] = useState(false);
+  const [receiptExportError, setReceiptExportError] = useState<string | null>(null);
+
+  async function exportReceiptImage() {
+    const receipt = receiptRef.current;
+    if (!receipt || isExportingReceipt) return;
+    setIsExportingReceipt(true);
+    setReceiptExportError(null);
+    try {
+      await document.fonts.ready;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const dataUrl = await toPng(receipt, {
+        backgroundColor: "#fffdf4",
+        cacheBust: true,
+        pixelRatio: 2,
+      });
+      const safeCompany = analysis.jobOffer.company
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 42);
+      const link = document.createElement("a");
+      link.download = `commute-lens-${safeCompany || "job-offer"}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      setReceiptExportError("The receipt image could not be created. Please try again.");
+    } finally {
+      setIsExportingReceipt(false);
+    }
+  }
 
   /*
    * A unit conversion for readability, not a metric: the same commute hours,
    * expressed in the user's own paid-day length.
    */
   const commuteInWorkingDays = scenario.monthlyCommuteHours / analysis.jobOffer.workingHoursPerDay;
+  const workingDaysPerWeek = analysis.jobOffer.workingDaysPerWeek ?? 5;
 
   return (
     <div className="pt-6 lg:pt-8">
@@ -175,8 +209,8 @@ export function RealityStage({
               </li>
             </ol>
             <p className="mt-6 max-w-md text-xs leading-relaxed text-paper/60">
-              Take-home uses your own percentage estimate. Fares are estimated, not ticketed. This
-              is a decision aid, not payroll.
+              Take-home uses the Philippine employee deductions selected for this offer. Fares are
+              estimated, not ticketed. This is a planning aid, not an official payslip.
             </p>
           </div>
 
@@ -240,7 +274,11 @@ export function RealityStage({
               : "No travel time to account for."
           }
         >
-          <TimeBlocks days={commuteInWorkingDays} reduceMotion={reduceMotion} />
+          <TimeBlocks
+            days={commuteInWorkingDays}
+            totalBlocks={workingDaysPerWeek}
+            reduceMotion={reduceMotion}
+          />
         </MetricCard>
         <MetricCard
           icon={<Hourglass />}
@@ -287,6 +325,7 @@ export function RealityStage({
           scenario={scenario}
           delta={scenarioDelta}
           scenarioDays={scenarioDays}
+          maximumOnsiteDays={workingDaysPerWeek}
           onChange={onScenarioDaysChange}
           routeState={scenarioRouteState}
           reduceMotion={reduceMotion}
@@ -336,14 +375,16 @@ export function RealityStage({
           fareConfirmations={fareConfirmations}
           route={activeRoute}
           reduceMotion={reduceMotion}
+          captureRef={receiptRef}
+          exportMode={isExportingReceipt}
         />
 
         <div className="grid content-start gap-5 print:hidden">
           <section className="app-panel p-5 sm:p-6">
             <Eyebrow>Where these numbers come from</Eyebrow>
-            <div className="mt-3 flex flex-wrap items-start gap-3">
-              <RouteStatusBadge status={status} />
-              <p className="min-w-0 flex-1 text-[0.78rem] leading-relaxed text-muted">
+            <div className="mt-3 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+              <RouteStatusBadge className="w-fit max-w-full shrink-0" status={status} />
+              <p className="w-full text-[0.78rem] leading-relaxed text-muted sm:min-w-0 sm:flex-1">
                 {routeStatusMeaning(status.kind)}
               </p>
             </div>
@@ -380,22 +421,36 @@ export function RealityStage({
             <p className="mt-4 flex items-start gap-2 border-t border-ink/10 pt-4 text-[0.72rem] leading-relaxed text-muted">
               <Info className="mt-0.5 size-3.5 shrink-0 text-flame" aria-hidden="true" />
               <span>
-                Fares and travel times are estimates, and take-home uses the percentage you set.
-                Nothing here is an official tax, payroll, or financial figure.
+                Fares and travel times are estimates. Take-home applies the selected Philippine
+                employee contribution and withholding tables, but it is not an official payslip, tax
+                filing, or financial figure.
               </span>
             </p>
           </section>
 
           <div className="flex flex-wrap gap-3">
-            <ActionButton variant="secondary" onClick={onPrint}>
-              <Printer className="size-3.5" aria-hidden="true" />
-              Print receipt
+            <ActionButton
+              variant="secondary"
+              onClick={() => void exportReceiptImage()}
+              disabled={isExportingReceipt}
+            >
+              {isExportingReceipt ? (
+                <LoaderCircle className="size-3.5 motion-safe:animate-spin" aria-hidden="true" />
+              ) : (
+                <ImageDown className="size-3.5" aria-hidden="true" />
+              )}
+              {isExportingReceipt ? "Creating image…" : "Save receipt as image"}
             </ActionButton>
             <ActionButton variant="secondary" onClick={onReset}>
               <RotateCcw className="size-3.5" aria-hidden="true" />
               Start a new analysis
             </ActionButton>
           </div>
+          {receiptExportError && (
+            <p role="alert" className="field-error">
+              {receiptExportError}
+            </p>
+          )}
         </div>
       </div>
 
@@ -455,11 +510,23 @@ function MetricCard({
 }
 
 /** Each block is one of the user's own working days spent travelling. */
-function TimeBlocks({ days, reduceMotion }: { days: number; reduceMotion: boolean }) {
-  const blocks = [0, 1, 2, 3, 4, 5];
+function TimeBlocks({
+  days,
+  totalBlocks,
+  reduceMotion,
+}: {
+  days: number;
+  totalBlocks: number;
+  reduceMotion: boolean;
+}) {
+  const blocks = Array.from({ length: totalBlocks }, (_, index) => index);
   return (
     <div className="mt-auto pt-5">
-      <div className="grid grid-cols-6 gap-1.5" aria-hidden="true">
+      <div
+        className="grid gap-1.5"
+        style={{ gridTemplateColumns: `repeat(${totalBlocks}, minmax(0, 1fr))` }}
+        aria-hidden="true"
+      >
         {blocks.map((index) => (
           <motion.span
             key={index}
@@ -551,7 +618,8 @@ function MoneyFlow({
   reduceMotion: boolean;
 }) {
   const gross = analysis.jobOffer.monthlySalary;
-  const takeHomePercent = Math.round((analysis.jobOffer.estimatedTakeHomeRate ?? 0.9) * 100);
+  const deductionTotal =
+    analysis.payrollEstimate?.totalDeductions ?? Math.max(0, gross - scenario.estimatedTakeHomePay);
   const share = (value: number) => (gross > 0 ? Math.max(0, Math.min(1, value / gross)) * 100 : 0);
 
   const legend = [
@@ -563,8 +631,8 @@ function MoneyFlow({
     { swatch: "bg-sand", label: "Transport", value: formatPeso(scenario.monthlyFare) },
     {
       swatch: "bg-accent",
-      label: "Deductions estimate",
-      value: `${100 - takeHomePercent}% assumption`,
+      label: "Employee deductions",
+      value: formatPeso(deductionTotal),
     },
   ];
 
@@ -577,7 +645,7 @@ function MoneyFlow({
       <div
         className="mt-4 flex h-11 overflow-hidden rounded-[0.6rem] bg-accent"
         role="img"
-        aria-label={`Of ${formatPeso(gross)} gross, ${formatPeso(scenario.incomeAfterCommute)} stays with you after ${formatPeso(scenario.monthlyFare)} of transport, assuming ${takeHomePercent}% take-home.`}
+        aria-label={`Of ${formatPeso(gross)} gross, ${formatPeso(scenario.incomeAfterCommute)} stays with you after ${formatPeso(scenario.monthlyFare)} of transport and ${formatPeso(deductionTotal)} of estimated employee deductions.`}
       >
         <motion.span
           className="block bg-ink"

@@ -15,8 +15,6 @@ import {
   scheduleLabel,
 } from "./format";
 
-const TICKS = ["0", "1", "2", "3", "4", "5"] as const;
-
 /**
  * The what-if control.
  *
@@ -30,6 +28,7 @@ export function ScenarioExplorer({
   scenario,
   delta,
   scenarioDays,
+  maximumOnsiteDays,
   onChange,
   routeState,
   reduceMotion,
@@ -38,12 +37,14 @@ export function ScenarioExplorer({
   scenario: JobScenario;
   delta: JobScenarioDelta;
   scenarioDays: number;
+  maximumOnsiteDays: number;
   onChange: (days: number) => void;
   routeState: "idle" | "loading" | "error";
   reduceMotion: boolean;
 }) {
   const dayDelta = delta.onsiteDaysPerWeek;
   const magnitude = Math.abs(dayDelta);
+  const ticks = Array.from({ length: maximumOnsiteDays + 1 }, (_, day) => String(day));
 
   return (
     <section className="mint-panel p-5 sm:p-7 print:hidden">
@@ -59,7 +60,7 @@ export function ScenarioExplorer({
           </p>
         </div>
         <span className="rounded-full bg-paper px-3 py-1.5 text-[0.65rem] font-black tracking-[0.08em] uppercase">
-          {scheduleLabel(scenarioDays)}
+          {scheduleLabel(scenarioDays, maximumOnsiteDays)}
         </span>
       </div>
 
@@ -68,10 +69,10 @@ export function ScenarioExplorer({
         label="Office days per week"
         value={scenarioDays}
         min={0}
-        max={5}
+        max={maximumOnsiteDays}
         onChange={onChange}
         valueLabel={scenarioDays === 0 ? "Remote" : `${scenarioDays} ${dayWord(scenarioDays)}`}
-        ticks={TICKS}
+        ticks={ticks}
       />
 
       {/* A fixed minimum height keeps the panel from resizing as the copy changes. */}

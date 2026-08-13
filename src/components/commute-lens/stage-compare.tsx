@@ -1,36 +1,29 @@
 "use client";
 
 import { motion } from "motion/react";
-import {
-  ArrowLeft,
-  Blend,
-  Building2,
-  Check,
-  Clock3,
-  Hourglass,
-  House,
-  LoaderCircle,
-  Scale,
-  Wallet,
-} from "lucide-react";
+import { ArrowLeft, Check, Clock3, Hourglass, LoaderCircle, Scale, Wallet } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { CompareJobOffersResult } from "@/application/compare-job-offers/use-case";
 import { LocationSearch } from "@/components/location/location-search";
 import { ActionButton } from "@/components/ui/action-button";
-import { ChoiceGroup, DayCountGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { CurrencyField, FormAlert, TextField, UnitField } from "@/components/ui/fields";
 import { Eyebrow } from "@/components/ui/typography";
-import type {
-  JobRealityAnalysis,
-  JobRealityComparison,
-  Location,
-  WorkArrangement,
-} from "@/domain/models";
+import { DEFAULT_PAYROLL_DEDUCTIONS } from "@/domain/finance/philippine-payroll";
+import type { JobRealityAnalysis, JobRealityComparison, Location } from "@/domain/models";
+import {
+  DEFAULT_HYBRID_SCHEDULE,
+  compactScheduleLabel,
+  countOnsiteDays,
+  countWorkingDays,
+  deriveWorkArrangement,
+} from "@/domain/work-schedule";
 import { toExplainComparisonRequest } from "@/shared/contracts/explanation";
 import { ComparisonBreakEvenCard } from "./break-even-card";
 import { buildComparisonVerdict, leaderLabel, type Leader } from "./comparison-narrative";
 import { ExplanationPanel } from "./explanation-panel";
 import { formatHours, formatPeso, scheduleLabel, shortPlace } from "./format";
+import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
+import { PayrollDeductionSelector } from "./payroll-deduction-selector";
 import {
   firstErrorField,
   summariseErrors,
@@ -39,21 +32,9 @@ import {
   type OfferField,
 } from "./offer-validation";
 
-const ARRANGEMENT_OPTIONS: readonly ChoiceOption<WorkArrangement>[] = [
-  { value: "remote", title: "Remote", note: "No office days.", icon: <House /> },
-  { value: "hybrid", title: "Hybrid", note: "A few office days.", icon: <Blend /> },
-  { value: "onsite", title: "Onsite", note: "Every working day.", icon: <Building2 /> },
-];
-
-function arrangementDays(arrangement: WorkArrangement, current: number) {
-  if (arrangement === "remote") return 0;
-  if (arrangement === "onsite") return 5;
-  return Math.min(4, Math.max(1, current || 3));
-}
-
 /**
  * Stage five. Job B is entered independently — its own origin, office, salary,
- * arrangement, and hours — then both offers are put through the same disclosed
+ * weekly schedule, and hours — then both offers are put through the same disclosed
  * model on the server.
  */
 export function ComparisonStage({
@@ -70,12 +51,14 @@ export function ComparisonStage({
     company: "",
     salary: "",
     workingHours: String(jobA.jobOffer.workingHoursPerDay),
-    takeHomePercent: String(Math.round((jobA.jobOffer.estimatedTakeHomeRate ?? 0.9) * 100)),
+    takeHomePercent: "90",
+    payrollDeductions: {
+      ...(jobA.jobOffer.payrollDeductions ?? DEFAULT_PAYROLL_DEDUCTIONS),
+    },
+    weeklySchedule: { ...DEFAULT_HYBRID_SCHEDULE },
   });
   const [origin, setOrigin] = useState<Location | null>(jobA.origin);
   const [destination, setDestination] = useState<Location | null>(null);
-  const [arrangement, setArrangement] = useState<WorkArrangement>("hybrid");
-  const [onsiteDays, setOnsiteDays] = useState(2);
   const [comparison, setComparison] = useState<JobRealityComparison | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +66,10 @@ export function ComparisonStage({
   const [touched, setTouched] = useState<readonly OfferField[]>([]);
 
   const errors = validateOfferDraft(draft);
-  const isRemote = arrangement === "remote";
+  const weeklySchedule = draft.weeklySchedule ?? DEFAULT_HYBRID_SCHEDULE;
+  const onsiteDays = countOnsiteDays(weeklySchedule);
+  const workingDays = countWorkingDays(weeklySchedule);
+  const arrangement = deriveWorkArrangement(weeklySchedule);
 
   function errorFor(field: OfferField) {
     return attempted || touched.includes(field) ? errors[field] : undefined;
@@ -95,11 +81,6 @@ export function ComparisonStage({
 
   function patch(next: Partial<OfferDraft>) {
     setDraft((current) => ({ ...current, ...next }));
-  }
-
-  function selectArrangement(next: WorkArrangement) {
-    setArrangement(next);
-    setOnsiteDays(arrangementDays(next, onsiteDays));
   }
 
   async function compare() {
@@ -139,8 +120,12 @@ export function ComparisonStage({
               officeLocation: destination,
               workArrangement: arrangement,
               onsiteDaysPerWeek: onsiteDays,
+              workingDaysPerWeek: workingDays,
+              weeklySchedule,
               workingHoursPerDay: Number(draft.workingHours),
-              estimatedTakeHomeRate: Number(draft.takeHomePercent) / 100,
+              payrollDeductions: draft.payrollDeductions ?? {
+                ...DEFAULT_PAYROLL_DEDUCTIONS,
+              },
             },
           },
         }),
@@ -193,7 +178,17 @@ export function ComparisonStage({
           </p>
           <dl className="mt-6 space-y-2.5 border-t border-ink/10 pt-4 text-sm">
             <SummaryRow label="Office" value={shortPlace(jobA.jobOffer.officeLocation.label)} />
-            <SummaryRow label="Schedule" value={scheduleLabel(jobA.jobOffer.onsiteDaysPerWeek)} />
+            <SummaryRow
+              label="Schedule"
+              value={
+                jobA.jobOffer.weeklySchedule
+                  ? compactScheduleLabel(jobA.jobOffer.weeklySchedule)
+                  : scheduleLabel(
+                      jobA.jobOffer.onsiteDaysPerWeek,
+                      jobA.jobOffer.workingDaysPerWeek ?? 5,
+                    )
+              }
+            />
             <SummaryRow
               label="Cash after transport"
               value={formatPeso(jobA.incomeAfterCommute)}
@@ -257,41 +252,26 @@ export function ComparisonStage({
                 />
               </div>
             </div>
-            <ChoiceGroup
-              name="compare-arrangement"
-              legend="Work arrangement"
-              value={arrangement}
-              options={ARRANGEMENT_OPTIONS}
-              onChange={selectArrangement}
+            <WeeklyScheduleEditor
+              compact
+              value={weeklySchedule}
+              onChange={(weeklySchedule) => patch({ weeklySchedule })}
             />
-            {!isRemote && (
-              <DayCountGroup
-                name="compare-onsite-days"
-                legend="Office days per week"
-                value={onsiteDays}
-                onChange={setOnsiteDays}
-              />
-            )}
-            <div className="grid gap-5 sm:grid-cols-2">
-              <UnitField
-                id="compare-workingHours"
-                label="Paid hours per day"
-                unit="hrs"
-                value={draft.workingHours}
-                onChange={(workingHours) => patch({ workingHours })}
-                onBlur={() => markTouched("workingHours")}
-                error={errorFor("workingHours")}
-              />
-              <UnitField
-                id="compare-takeHomePercent"
-                label="Take-home"
-                unit="%"
-                value={draft.takeHomePercent}
-                onChange={(takeHomePercent) => patch({ takeHomePercent })}
-                onBlur={() => markTouched("takeHomePercent")}
-                error={errorFor("takeHomePercent")}
-              />
-            </div>
+            <UnitField
+              id="compare-workingHours"
+              label="Paid hours per day"
+              unit="hrs"
+              value={draft.workingHours}
+              onChange={(workingHours) => patch({ workingHours })}
+              onBlur={() => markTouched("workingHours")}
+              error={errorFor("workingHours")}
+            />
+            <PayrollDeductionSelector
+              compact
+              salary={!errors.salary && Number(draft.salary) > 0 ? Number(draft.salary) : 0}
+              value={draft.payrollDeductions ?? DEFAULT_PAYROLL_DEDUCTIONS}
+              onChange={(payrollDeductions) => patch({ payrollDeductions })}
+            />
             {(summary || error) && <FormAlert>{error ?? summary}</FormAlert>}
             <ActionButton onClick={() => void compare()} disabled={loading}>
               {loading ? (
@@ -384,9 +364,9 @@ export function ComparisonStage({
               />
             </div>
             <p className="mt-7 border-t border-ink/10 pt-4 text-[0.72rem] leading-relaxed text-muted">
-              Both offers use the same estimated fares, the same weeks-per-month assumption, and
-              each offer&apos;s own take-home percentage. Bars show magnitude, and the leader is
-              marked in words as well as colour.
+              Both offers use the same estimated fares and weeks-per-month assumption. Each offer
+              independently applies its selected Philippine employee deductions. Bars show
+              magnitude, and the leader is marked in words as well as colour.
             </p>
           </section>
 

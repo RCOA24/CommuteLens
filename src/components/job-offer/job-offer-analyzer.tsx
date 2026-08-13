@@ -117,6 +117,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
         officeLocation: DEMO_OFFICES[officeKey],
         workArrangement,
         onsiteDaysPerWeek: toNumber(onsiteDaysPerWeek),
+        workingDaysPerWeek: Math.max(5, toNumber(onsiteDaysPerWeek)),
         workingHoursPerDay: toNumber(workingHoursPerDay),
       },
     };
@@ -271,7 +272,7 @@ export function JobOfferAnalyzer({ children }: JobOfferAnalyzerProps) {
                 type="number"
                 inputMode="numeric"
                 min={0}
-                max={5}
+                max={7}
                 step={1}
                 placeholder="3"
                 value={onsiteDaysPerWeek}

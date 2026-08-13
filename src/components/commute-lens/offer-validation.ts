@@ -1,3 +1,5 @@
+import { countWorkingDays } from "@/domain/work-schedule";
+
 /**
  * Client-side validation for the offer form.
  *
@@ -13,7 +15,10 @@ export interface OfferDraft {
   company: string;
   salary: string;
   workingHours: string;
+  /** Legacy hidden value kept while older API clients migrate. */
   takeHomePercent: string;
+  payrollDeductions?: import("@/domain/finance/philippine-payroll").PayrollDeductionSelection;
+  weeklySchedule?: import("@/domain/work-schedule").WeeklyWorkSchedule;
 }
 
 export type OfferField = keyof OfferDraft;
@@ -66,11 +71,22 @@ export function validateOfferDraft(draft: OfferDraft): OfferFieldErrors {
     errors.takeHomePercent = `Use a value between ${TAKE_HOME_MIN_PERCENT}% and ${TAKE_HOME_MAX_PERCENT}%.`;
   }
 
+  if (draft.weeklySchedule && countWorkingDays(draft.weeklySchedule) === 0) {
+    errors.weeklySchedule = "Select at least one working day.";
+  }
+
   return errors;
 }
 
 export function firstErrorField(errors: OfferFieldErrors): OfferField | null {
-  const order: OfferField[] = ["title", "company", "salary", "workingHours", "takeHomePercent"];
+  const order: OfferField[] = [
+    "title",
+    "company",
+    "salary",
+    "weeklySchedule",
+    "workingHours",
+    "takeHomePercent",
+  ];
   return order.find((field) => errors[field] !== undefined) ?? null;
 }
 

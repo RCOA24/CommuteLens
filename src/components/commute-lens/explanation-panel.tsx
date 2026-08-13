@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, MessageSquareQuote, ShieldCheck } from "lucide-react";
+import { LoaderCircle, MessageSquareQuote, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
 import type { ExplainResult } from "@/app/api/explain/route";
 import type { ExplainRequest } from "@/shared/contracts/explanation";
@@ -52,13 +52,25 @@ export function ExplanationPanel({
   }
 
   return (
-    <section className={`app-panel p-5 sm:p-6 print:hidden ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className={`app-panel ai-module p-5 sm:p-6 print:hidden ${className}`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <Eyebrow>In plain words</Eyebrow>
+          <span className="ai-badge">
+            <Sparkles className="size-3" aria-hidden="true" /> Optional AI
+          </span>
+          <Eyebrow className="mt-3">Plain-language coach</Eyebrow>
           <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted">{prompt}</p>
+          <p className="mt-2 max-w-lg text-[0.68rem] leading-relaxed text-muted">
+            AI explains the calculated result. It cannot change salary, deductions, fare, time, or
+            the selected route.
+          </p>
         </div>
-        <ActionButton variant="secondary" onClick={() => void explain()} disabled={loading}>
+        <ActionButton
+          className="w-full shrink-0 sm:w-auto"
+          variant="secondary"
+          onClick={() => void explain()}
+          disabled={loading}
+        >
           {loading ? (
             <>
               <LoaderCircle className="size-3.5 motion-safe:animate-spin" aria-hidden="true" />

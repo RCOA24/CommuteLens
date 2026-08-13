@@ -18,6 +18,7 @@ export function BreakEvenCard({
   const minimumGrossMonthlySalary = minimumRequiredGrossSalary({
     monthlyCommuteFare,
     estimatedTakeHomeRate,
+    payrollDeductions: analysis.jobOffer.payrollDeductions,
   });
   const deltaFromCurrent = minimumGrossMonthlySalary - analysis.jobOffer.monthlySalary;
 
@@ -41,9 +42,11 @@ export function BreakEvenCard({
         {deltaFromCurrent > 0
           ? `That is ${formatPeso(deltaFromCurrent)} above the advertised salary.`
           : `The advertised salary is ${formatPeso(Math.abs(deltaFromCurrent))} above this cash-only floor.`}{" "}
-        Based on {scenarioDays} office day{scenarioDays === 1 ? "" : "s"} a week,{" "}
-        {formatPeso(monthlyCommuteFare)} monthly transport, and your{" "}
-        {Math.round(estimatedTakeHomeRate * 100)}% take-home estimate.
+        Based on {scenarioDays} office day{scenarioDays === 1 ? "" : "s"} a week and{" "}
+        {formatPeso(monthlyCommuteFare)} monthly transport. The salary floor re-runs the selected{" "}
+        {analysis.jobOffer.payrollDeductions
+          ? "Philippine employee deductions at each candidate salary."
+          : `${Math.round(estimatedTakeHomeRate * 100)}% legacy take-home estimate.`}
       </p>
       <p className="mt-3 flex items-start gap-2 border-t border-ink/10 pt-3 text-[0.68rem] leading-relaxed text-muted">
         <ArrowUpRight className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden="true" />

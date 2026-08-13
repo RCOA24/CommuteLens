@@ -9,6 +9,7 @@ import {
   MessageSquareQuote,
   Milestone,
   ShieldCheck,
+  Sparkles,
   Train,
 } from "lucide-react";
 import { useState } from "react";
@@ -133,8 +134,8 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
           Your selected route, step by step
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-          These steps come from the itinerary used to price your commute. Check them before you
-          rely on the estimate.
+          These steps come from the itinerary used to price your commute. Check them before you rely
+          on the estimate.
         </p>
       </div>
 
@@ -155,7 +156,10 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
       ) : (
         <ol className="divide-y divide-ink/10 px-5 sm:px-6" aria-label="Selected commute steps">
           {route.segments.map((segment, index) => (
-            <li key={`${segment.origin.label}-${segment.destination.label}-${index}`} className="py-4">
+            <li
+              key={`${segment.origin.label}-${segment.destination.label}-${index}`}
+              className="py-4"
+            >
               <div className="flex gap-3.5">
                 <span
                   aria-hidden="true"
@@ -174,7 +178,11 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
                     </p>
                   </div>
                   <p className="mt-1.5 text-sm leading-relaxed font-bold">
-                    {segmentInstruction(segment.mode, segment.origin.label, segment.destination.label)}
+                    {segmentInstruction(
+                      segment.mode,
+                      segment.origin.label,
+                      segment.destination.label,
+                    )}
                   </p>
                 </div>
               </div>
@@ -194,21 +202,33 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
         <RouteStatusBadge status={status} />
       </div>
 
-      <div className="border-t border-ink/10 px-5 py-4 sm:px-6">
+      <div className="ai-module-inset m-3 p-4 sm:m-4 sm:p-5">
         {guideEligibility.isEligible ? (
           <>
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-bold">Want this provider itinerary in plain words?</p>
+                <span className="ai-badge">
+                  <Sparkles className="size-3" aria-hidden="true" /> Optional AI
+                </span>
+                <p className="mt-3 text-sm font-bold">
+                  Turn this itinerary into plain-language steps
+                </p>
                 <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted">
-                  Ask AI to explain the selected itinerary. It is restricted to the provider-returned
-                  legs, times, fares, and transfer count shown above.
+                  Ask AI to explain the selected itinerary. It is restricted to the
+                  provider-returned legs, times, fares, and transfer count shown above.
                 </p>
               </div>
-              <ActionButton variant="secondary" onClick={() => void requestAiGuide()} disabled={isLoadingGuide}>
+              <ActionButton
+                variant="secondary"
+                onClick={() => void requestAiGuide()}
+                disabled={isLoadingGuide}
+              >
                 {isLoadingGuide ? (
                   <>
-                    <LoaderCircle className="size-3.5 motion-safe:animate-spin" aria-hidden="true" />
+                    <LoaderCircle
+                      className="size-3.5 motion-safe:animate-spin"
+                      aria-hidden="true"
+                    />
                     Writing…
                   </>
                 ) : (
@@ -232,7 +252,11 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
                   </p>
                 </div>
               )}
-              {guideError && <p role="alert" className="field-error mt-3">{guideError}</p>}
+              {guideError && (
+                <p role="alert" className="field-error mt-3">
+                  {guideError}
+                </p>
+              )}
             </div>
           </>
         ) : (

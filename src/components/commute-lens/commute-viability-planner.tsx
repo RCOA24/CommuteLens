@@ -78,7 +78,8 @@ function PlanResults({ plan }: { plan: CommuteViabilityPlan }) {
             {formatPeso(plan.targetIncomeAfterCommute)}
             after transport for up to{" "}
             <strong className="font-black text-ink">
-              {maximumDays} office {dayWord(maximumDays)} a week
+              {maximumDays} of {plan.workingDaysPerWeek} working {dayWord(plan.workingDaysPerWeek)}{" "}
+              onsite
             </strong>
             .
           </p>
@@ -107,7 +108,7 @@ function PlanResults({ plan }: { plan: CommuteViabilityPlan }) {
               <tr key={row.onsiteDaysPerWeek}>
                 <th scope="row" className="px-4 py-3 align-top">
                   <span className="block text-sm font-black">
-                    {scheduleLabel(row.onsiteDaysPerWeek)}
+                    {scheduleLabel(row.onsiteDaysPerWeek, plan.workingDaysPerWeek)}
                   </span>
                   <span className="mt-0.5 block text-[0.7rem] font-normal text-muted">
                     {formatPeso(row.scenario.monthlyFare)} transport ·{" "}
@@ -149,9 +150,9 @@ function PlanResults({ plan }: { plan: CommuteViabilityPlan }) {
       </div>
       <p className="mt-4 flex items-start gap-2 text-[0.7rem] leading-relaxed text-ink/65">
         <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-flame" aria-hidden="true" />
-        Allowance is shown as a net monthly reimbursement after deductions. Salary floors use your
-        selected take-home estimate and exclude commute time; neither is payroll, tax, or financial
-        advice.
+        Allowance is shown as a net monthly reimbursement after deductions. Salary floors re-run the
+        selected employee deductions at each candidate salary and exclude commute time; neither is
+        payroll, tax, or financial advice.
       </p>
     </>
   );

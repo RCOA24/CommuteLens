@@ -5,8 +5,8 @@ export function calculateCommute(
   route: CommuteRoute | null,
   officeDaysPerWeek: number,
 ): CommuteAnalysis {
-  if (!Number.isInteger(officeDaysPerWeek) || officeDaysPerWeek < 0 || officeDaysPerWeek > 5) {
-    throw new RangeError("Office days per week must be an integer from 0 to 5.");
+  if (!Number.isInteger(officeDaysPerWeek) || officeDaysPerWeek < 0 || officeDaysPerWeek > 7) {
+    throw new RangeError("Office days per week must be an integer from 0 to 7.");
   }
 
   const officeDaysPerMonth = officeDaysPerWeek * COMMUTE_ASSUMPTIONS.averageWeeksPerMonth;

@@ -8,6 +8,12 @@ export interface Location {
   coordinate: Coordinate;
 }
 
+import type {
+  PhilippinePayrollEstimate,
+  PayrollDeductionSelection,
+} from "@/domain/finance/philippine-payroll";
+import type { WeeklyWorkSchedule } from "@/domain/work-schedule";
+
 export type WorkArrangement = "onsite" | "hybrid" | "remote";
 
 export interface JobOffer {
@@ -18,8 +24,13 @@ export interface JobOffer {
   officeLocation: Location;
   workArrangement: WorkArrangement;
   onsiteDaysPerWeek: number;
+  /** Onsite plus WFH days. Defaults to the legacy five-day week when absent. */
+  workingDaysPerWeek?: number;
+  weeklySchedule?: WeeklyWorkSchedule;
   workingHoursPerDay: number;
-  /** User-adjustable estimate, not an authoritative payroll calculation. */
+  /** Versioned Philippine employee deduction selection used for the automatic estimate. */
+  payrollDeductions?: PayrollDeductionSelection;
+  /** Legacy compatibility for older API clients that still provide a manual rate. */
   estimatedTakeHomeRate?: number;
 }
 
@@ -80,6 +91,7 @@ export interface JobRealityAnalysis {
   /** Statutory fare entitlement the commute was priced with. */
   fareDiscountClass: FareDiscountClassName;
   commute: CommuteAnalysis;
+  payrollEstimate?: PhilippinePayrollEstimate;
   estimatedTakeHomePay: number;
   incomeAfterCommute: number;
   commuteBurdenPercentage: number;

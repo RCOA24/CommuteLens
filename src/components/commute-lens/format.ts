@@ -108,11 +108,15 @@ export function arrangementLabel(arrangement: WorkArrangement): string {
   }
 }
 
-/** How the schedule reads once a day count is known. */
-export function scheduleLabel(onsiteDaysPerWeek: number): string {
-  if (onsiteDaysPerWeek === 0) return "Remote · no office days";
-  if (onsiteDaysPerWeek === 5) return "Onsite · 5 days a week";
-  return `Hybrid · ${onsiteDaysPerWeek} ${onsiteDaysPerWeek === 1 ? "day" : "days"} a week`;
+/** Describes a hypothetical onsite count within the user's actual working week. */
+export function scheduleLabel(onsiteDaysPerWeek: number, workingDaysPerWeek = 5): string {
+  const prefix =
+    onsiteDaysPerWeek === 0
+      ? "Remote"
+      : onsiteDaysPerWeek === workingDaysPerWeek
+        ? "Onsite"
+        : "Hybrid";
+  return `${prefix} · ${onsiteDaysPerWeek} of ${workingDaysPerWeek} workdays onsite`;
 }
 
 export function dayWord(count: number): string {

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^1.31.0",
     "maplibre-gl": "^6.3.0",
     "motion": "^13.1.0",

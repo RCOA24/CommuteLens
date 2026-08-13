@@ -13,8 +13,16 @@ import type { RoutePreviewResult } from "@/app/api/commute/route/route";
 import { PRIMARY_DEMO_SCENARIO } from "@/data/demo";
 import { calculateCommute } from "@/domain/commute/calculations";
 import { estimateSuspendedFareHikeImpact, type FareDiscountClass } from "@/domain/fare";
+import { DEFAULT_PAYROLL_DEDUCTIONS } from "@/domain/finance/philippine-payroll";
 import { calculateCommuteViabilityPlan } from "@/domain/job/commute-viability";
 import { calculateJobScenario, diffJobScenarios } from "@/domain/job/scenario";
+import {
+  DEFAULT_HYBRID_SCHEDULE,
+  countOnsiteDays,
+  countWorkingDays,
+  deriveWorkArrangement,
+  scheduleForArrangement,
+} from "@/domain/work-schedule";
 import type { CommuteRoute, JobRealityAnalysis, Location, WorkArrangement } from "@/domain/models";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { formatPeso } from "./format";
@@ -40,12 +48,6 @@ const PROGRESS_INDEX: Record<Step, number> = {
 };
 
 const seed = PRIMARY_DEMO_SCENARIO;
-
-function arrangementDays(arrangement: WorkArrangement, current: number) {
-  if (arrangement === "remote") return 0;
-  if (arrangement === "onsite") return 5;
-  return Math.min(4, Math.max(1, current || 3));
-}
 
 /**
  * The state machine for the whole journey.
@@ -74,8 +76,9 @@ export function CommuteLensExperience() {
   const [destination, setDestination] = useState<Location | null>(null);
   const [route, setRoute] = useState<CommuteRoute | null>(null);
   const [routeCandidates, setRouteCandidates] = useState<readonly CommuteRoute[]>([]);
-  const [researchedRoutePlan, setResearchedRoutePlan] =
-    useState<ResearchedCommuteRoutePlan | null>(null);
+  const [researchedRoutePlan, setResearchedRoutePlan] = useState<ResearchedCommuteRoutePlan | null>(
+    null,
+  );
   const [isDiscoveringRoute, setIsDiscoveringRoute] = useState(false);
   const [commuteError, setCommuteError] = useState<string | null>(null);
 
@@ -85,9 +88,10 @@ export function CommuteLensExperience() {
     salary: String(seed.jobOffer.monthlySalary),
     workingHours: "8",
     takeHomePercent: "90",
+    payrollDeductions: { ...DEFAULT_PAYROLL_DEDUCTIONS },
+    weeklySchedule: { ...DEFAULT_HYBRID_SCHEDULE },
   });
   const [arrangement, setArrangement] = useState<WorkArrangement>("hybrid");
-  const [onsiteDays, setOnsiteDays] = useState(3);
   const [fareClass, setFareClass] = useState<FareDiscountClass>("regular");
   const [fareConfirmations, setFareConfirmations] = useState<readonly FareConfirmationSummary[]>(
     [],
@@ -102,9 +106,7 @@ export function CommuteLensExperience() {
     "idle",
   );
   const [readiness, setReadiness] = useState<CommuteReadiness | null>(null);
-  const [readinessState, setReadinessState] = useState<"idle" | "loading" | "unavailable">(
-    "idle",
-  );
+  const [readinessState, setReadinessState] = useState<"idle" | "loading" | "unavailable">("idle");
   const [viabilityTargetIncome, setViabilityTargetIncome] = useState(0);
 
   useLayoutEffect(() => {
@@ -136,7 +138,7 @@ export function CommuteLensExperience() {
 
   function selectArrangement(next: WorkArrangement) {
     setArrangement(next);
-    setOnsiteDays(arrangementDays(next, onsiteDays));
+    setDraft((current) => ({ ...current, weeklySchedule: scheduleForArrangement(next) }));
     invalidateRoute();
   }
 
@@ -287,6 +289,10 @@ export function CommuteLensExperience() {
     const requestVersion = ++calculationRequestVersion.current;
     setStep("calculating");
 
+    const weeklySchedule = draft.weeklySchedule ?? scheduleForArrangement(arrangement);
+    const calculatedOnsiteDays = countOnsiteDays(weeklySchedule);
+    const calculatedWorkingDays = countWorkingDays(weeklySchedule);
+    const calculatedArrangement = deriveWorkArrangement(weeklySchedule);
     const payload = {
       origin,
       route,
@@ -297,10 +303,12 @@ export function CommuteLensExperience() {
         company: draft.company.trim(),
         monthlySalary: Number(draft.salary),
         officeLocation: destination,
-        workArrangement: arrangement,
-        onsiteDaysPerWeek: onsiteDays,
+        workArrangement: calculatedArrangement,
+        onsiteDaysPerWeek: calculatedOnsiteDays,
+        workingDaysPerWeek: calculatedWorkingDays,
+        weeklySchedule,
         workingHoursPerDay: Number(draft.workingHours),
-        estimatedTakeHomeRate: Number(draft.takeHomePercent) / 100,
+        payrollDeductions: draft.payrollDeductions ?? { ...DEFAULT_PAYROLL_DEDUCTIONS },
       },
     };
 
@@ -326,8 +334,9 @@ export function CommuteLensExperience() {
         return;
       }
       setAnalysis(result.data);
-      setBaselineDays(onsiteDays);
-      setScenarioDays(onsiteDays);
+      setRoute(result.data.commute.route);
+      setBaselineDays(calculatedOnsiteDays);
+      setScenarioDays(calculatedOnsiteDays);
       setViabilityTargetIncome(Math.max(0, result.data.incomeAfterCommute));
       setScenarioRouteState("idle");
       void loadCommuteReadiness(result.data.commute.route);
@@ -430,9 +439,7 @@ export function CommuteLensExperience() {
   return (
     <main className="app-shell text-ink print:bg-white">
       <div className="mx-auto max-w-[1320px] px-5 pt-4 pb-16 sm:px-8 lg:px-12">
-        <header
-          className="sticky top-0 z-30 -mx-5 mb-1 flex items-center justify-between gap-4 border-b border-ink/10 bg-canvas/85 px-5 py-3.5 backdrop-blur-md sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 print:hidden"
-        >
+        <header className="sticky top-0 z-30 -mx-5 mb-1 flex items-center justify-between gap-4 border-b border-ink/10 bg-canvas/85 px-5 py-3.5 backdrop-blur-md sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 print:hidden">
           <button
             type="button"
             className="flex items-center gap-2.5 text-left"
@@ -462,11 +469,7 @@ export function CommuteLensExperience() {
 
         <AnimatePresence mode="wait">
           {isIntroVisible ? (
-            <IntroPrelude
-              key="intro"
-              reduceMotion={reduceMotion}
-              onEnter={enterJourney}
-            />
+            <IntroPrelude key="intro" reduceMotion={reduceMotion} onEnter={enterJourney} />
           ) : (
             step === "commute" && (
               <Stage key="commute" reduceMotion={reduceMotion} entrance="zoom">
@@ -517,10 +520,6 @@ export function CommuteLensExperience() {
                 route={route}
                 draft={draft}
                 onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
-                arrangement={arrangement}
-                onArrangementChange={selectArrangement}
-                onsiteDays={onsiteDays}
-                onOnsiteDaysChange={setOnsiteDays}
                 serverError={offerError}
                 onBack={() => setStep(route ? "route" : "commute")}
                 onSubmit={() => void calculate()}
@@ -532,7 +531,9 @@ export function CommuteLensExperience() {
             <Stage key="calculating" reduceMotion={reduceMotion}>
               <CalculatingStage
                 route={route}
-                onsiteDays={onsiteDays}
+                onsiteDays={countOnsiteDays(
+                  draft.weeklySchedule ?? scheduleForArrangement(arrangement),
+                )}
                 reduceMotion={reduceMotion}
                 isReady={isCalculationReady}
                 onBack={returnToOfferFromCalculation}
@@ -574,7 +575,6 @@ export function CommuteLensExperience() {
                 reduceMotion={reduceMotion}
                 onEdit={() => setStep("offer")}
                 onCompare={() => setStep("compare")}
-                onPrint={() => window.print()}
                 onReset={reset}
               />
             </Stage>
@@ -620,9 +620,7 @@ function Stage({
               : { opacity: 0, x: 16 }
       }
       animate={
-        isZoomEntrance || isRealityReveal
-          ? { opacity: 1, scale: 1, y: 0 }
-          : { opacity: 1, x: 0 }
+        isZoomEntrance || isRealityReveal ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }
       }
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
       transition={{

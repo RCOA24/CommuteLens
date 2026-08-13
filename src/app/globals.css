@@ -261,6 +261,9 @@ button {
 }
 
 .currency-field input {
+  /* The wrapper is a div, not a label, so only the input itself takes a tap.
+     Stretching it to the field height keeps the whole control tappable. */
+  align-self: stretch;
   min-width: 0;
   flex: 1;
   border: 0;
@@ -301,6 +304,8 @@ button {
 }
 
 .unit-field input {
+  /* Same as .currency-field: the wrapper is a div, so only the input takes a tap. */
+  align-self: stretch;
   min-width: 0;
   flex: 1;
   border: 0;
@@ -852,6 +857,12 @@ button {
 .route-map .maplibregl-ctrl-attrib {
   max-width: calc(100% - 4rem);
   font-size: 0.6rem;
+}
+
+/* MapLibre ships 29px zoom buttons, below the 44px touch minimum. */
+.route-map .maplibregl-ctrl-group button {
+  width: 2.75rem;
+  height: 2.75rem;
 }
 
 .route-map-status {

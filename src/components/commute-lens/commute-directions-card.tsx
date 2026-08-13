@@ -20,6 +20,7 @@ import {
 import { ActionButton } from "@/components/ui/action-button";
 import { Eyebrow } from "@/components/ui/typography";
 import type { CommuteRoute, TransportMode } from "@/domain/models";
+import { ApiError, userFacingMessage } from "@/shared/security/safe-error";
 import { formatMinutes, formatPeso, modeLabel, shortPlace, transferLabel } from "./format";
 import { describeRouteStatus } from "./provenance";
 import { RouteStatusBadge } from "./route-status-badge";
@@ -111,7 +112,7 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
         body: JSON.stringify({ route: selectedRoute }),
       });
       const result = (await response.json()) as CommuteGuideResult;
-      if (!result.success) throw new Error(result.error.message);
+      if (!result.success) throw new ApiError(result.error.message);
       setGuide({
         routeId: selectedRoute.id,
         source: result.data.source,
@@ -119,7 +120,7 @@ export function CommuteDirectionsCard({ route }: { route: CommuteRoute | null })
         degradedReason: result.data.degradedReason,
       });
     } catch (error) {
-      setGuideError(error instanceof Error ? error.message : "The commute guide is unavailable.");
+      setGuideError(userFacingMessage(error, "The commute guide is unavailable."));
     } finally {
       setIsLoadingGuide(false);
     }

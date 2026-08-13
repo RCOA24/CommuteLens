@@ -4,6 +4,7 @@ import { LoaderCircle, MessageSquareQuote, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import type { ExplainResult } from "@/app/api/explain/route";
 import type { ExplainRequest } from "@/shared/contracts/explanation";
+import { ApiError, userFacingMessage } from "@/shared/security/safe-error";
 import { ActionButton } from "@/components/ui/action-button";
 import { Eyebrow } from "@/components/ui/typography";
 
@@ -39,12 +40,15 @@ export function ExplanationPanel({
         body: JSON.stringify(payload),
       });
       const result = (await response.json()) as ExplainResult;
-      if (!result.success) throw new Error(result.error.message);
+      if (!result.success) throw new ApiError(result.error.message);
       setExplanation(result.data.text);
       setSource(result.data.source);
     } catch (explainError) {
       setError(
-        explainError instanceof Error ? explainError.message : "Explanation is unavailable.",
+        userFacingMessage(
+          explainError,
+          "Explanation is unavailable. The figures above are unaffected.",
+        ),
       );
     } finally {
       setLoading(false);

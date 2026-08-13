@@ -435,7 +435,7 @@ export function CommuteLensExperience() {
         >
           <button
             type="button"
-            className="flex items-center gap-2.5 text-left"
+            className="flex min-h-11 items-center gap-2.5 text-left"
             onClick={isIntroVisible ? enterJourney : reset}
             aria-label={
               isIntroVisible ? "Commute Lens — start planning" : "Commute Lens — start over"

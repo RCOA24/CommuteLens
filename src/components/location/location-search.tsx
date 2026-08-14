@@ -221,7 +221,7 @@ export function LocationSearch({
           <input
             ref={inputRef}
             id={`${id}-input`}
-            className="text-field !min-h-12 !pr-10 !pl-10 text-sm placeholder:text-ink/35"
+            className="text-field !min-h-12 !pr-12 !pl-10 text-sm placeholder:text-ink/35"
             placeholder={placeholder}
             value={query}
             onChange={(event) => handleInputChange(event.target.value)}
@@ -241,7 +241,7 @@ export function LocationSearch({
             <button
               type="button"
               onClick={clear}
-              className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-ink/6 hover:text-ink"
+              className="absolute top-1/2 right-1 grid size-11 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-ink/6 hover:text-ink"
               aria-label={`Clear ${label.toLowerCase()}`}
             >
               <X className="size-3.5" aria-hidden="true" />

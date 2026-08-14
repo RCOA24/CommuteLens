@@ -644,7 +644,7 @@ export function CommuteLensExperience() {
         <header className="sticky top-0 z-30 -mx-5 mb-1 flex items-center justify-between gap-4 border-b border-ink/10 bg-canvas px-5 py-3.5 sm:-mx-8 sm:bg-canvas/85 sm:px-8 sm:backdrop-blur-md lg:-mx-12 lg:px-12 print:hidden">
           <button
             type="button"
-            className="flex items-center gap-2.5 text-left"
+            className="flex min-h-11 items-center gap-2.5 text-left"
             onClick={isIntroVisible ? enterJourney : reset}
             aria-label={
               isIntroVisible ? "Commute Lens — start planning" : "Commute Lens — start over"

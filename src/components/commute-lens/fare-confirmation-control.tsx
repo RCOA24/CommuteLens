@@ -73,7 +73,7 @@ export function FareConfirmationControl({
       )}
 
       <details className="mt-2">
-        <summary className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 font-black text-mint">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 font-black text-mint">
           <HandCoins className="size-3.5" aria-hidden="true" />
           {isConfirmed ? "Confirm your fare too" : "Confirm fare"}
         </summary>
@@ -82,7 +82,7 @@ export function FareConfirmationControl({
             <span className="sr-only">Whole-peso fare paid for this leg</span>
             <input
               id={fieldId}
-              className="min-h-9 w-full rounded-lg border border-paper/25 bg-paper px-2.5 text-sm font-bold text-ink"
+              className="min-h-11 w-full rounded-lg border border-paper/25 bg-paper px-2.5 text-sm font-bold text-ink"
               type="text"
               inputMode="numeric"
               autoComplete="off"
@@ -95,7 +95,7 @@ export function FareConfirmationControl({
           </label>
           <button
             type="button"
-            className="min-h-9 rounded-lg bg-mint px-3 text-[0.68rem] font-black text-ink disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-lg bg-mint px-3 text-[0.68rem] font-black text-ink disabled:cursor-not-allowed disabled:opacity-60"
             onClick={() => void submit()}
             disabled={loading}
           >

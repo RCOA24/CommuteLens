@@ -179,7 +179,7 @@ export function RealityStage({
       {/* Animates on mount rather than on scroll: it is above the fold and it is
           the answer the reader came for, so it must not wait for anything. */}
       <motion.section
-        {...materialize(reduceMotion, { distance: 26, scale: 0.98, blur: 10 })}
+        {...materialize(reduceMotion, { distance: 26, scale: 0.98 })}
         className="ink-panel on-ink mt-5 overflow-hidden print:hidden"
       >
         <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">

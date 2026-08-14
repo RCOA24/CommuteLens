@@ -60,30 +60,35 @@ export interface MaterializeOptions {
   distance?: number;
   /** Starting scale. Just under 1, so it reads as depth rather than as a zoom. */
   scale?: number;
-  /** Starting blur in pixels. 0 opts out, which is the right call for long lists. */
-  blur?: number;
   transition?: Transition;
 }
 
 /**
- * The house entrance: rise a little, grow a little, sharpen from a blur.
+ * The house entrance: rise a little, grow a little, fade in.
  *
- * The blur is what makes this feel like Apple's material rather than a plain
- * fade — an element resolves into focus as though it were settling into the
- * frame. It is also the expensive part, so it is a knob and not a constant.
+ * ONLY `opacity` and `transform` are animated, and that is a hard rule rather than
+ * a stylistic preference. Both are handled by the compositor, so the browser can
+ * run them without re-laying out or repainting anything.
+ *
+ * An earlier version of this also animated `filter: blur()`. It looked lovely on a
+ * desktop and made mid-range phones stutter, because a blur cannot be composited:
+ * every frame forces a repaint of the element and the backdrop behind it. On a long
+ * page where several sections reveal while the user is actively scrolling, that is
+ * the entire frame budget gone. The look was not worth the cost, and `blur` is
+ * deliberately absent from the options so it cannot quietly come back.
  *
  * Reduced motion returns `initial: false`, which mounts the element at its final
  * values and animates nothing. One set of markup serves both paths, so there is
  * no second copy of a screen to keep in sync.
  */
 export function materialize(reduceMotion: boolean, options: MaterializeOptions = {}): MotionCue {
-  const { delay = 0, distance = 22, scale = 0.97, blur = 8, transition = SPRING_SMOOTH } = options;
+  const { delay = 0, distance = 22, scale = 0.97, transition = SPRING_SMOOTH } = options;
 
-  const settled = { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" };
+  const settled = { opacity: 1, y: 0, scale: 1 };
   if (reduceMotion) return { initial: false, animate: settled };
 
   return {
-    initial: { opacity: 0, y: distance, scale, filter: `blur(${blur}px)` },
+    initial: { opacity: 0, y: distance, scale },
     animate: settled,
     transition: { ...transition, delay },
   };

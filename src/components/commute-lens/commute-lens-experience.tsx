@@ -634,7 +634,14 @@ export function CommuteLensExperience() {
   return (
     <main className="app-shell text-ink print:bg-white">
       <div className="mx-auto max-w-[1320px] px-5 pt-4 pb-16 sm:px-8 lg:px-12">
-        <header className="sticky top-0 z-30 -mx-5 mb-1 flex items-center justify-between gap-4 border-b border-ink/10 bg-canvas/85 px-5 py-3.5 backdrop-blur-md sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 print:hidden">
+        {/*
+          The translucent blur is desktop-only on purpose. `backdrop-filter` on a
+          sticky element is re-evaluated on every scroll frame, which is one of the
+          most reliable ways to make a phone drop frames — and it competes directly
+          with the scroll-triggered reveals further down the page. Small screens get
+          an opaque bar instead, which looks near-identical and costs nothing.
+        */}
+        <header className="sticky top-0 z-30 -mx-5 mb-1 flex items-center justify-between gap-4 border-b border-ink/10 bg-canvas px-5 py-3.5 sm:-mx-8 sm:bg-canvas/85 sm:px-8 sm:backdrop-blur-md lg:-mx-12 lg:px-12 print:hidden">
           <button
             type="button"
             className="flex items-center gap-2.5 text-left"
@@ -882,7 +889,6 @@ function Stage({
     : materialize(reduceMotion, {
         distance: entrance === "reveal" ? 30 : entrance === "zoom" ? 20 : 16,
         scale: entrance === "zoom" ? 0.94 : entrance === "reveal" ? 0.97 : 0.99,
-        blur: entrance === "slide" ? 5 : 10,
         transition: entrance === "reveal" ? SPRING_CINEMATIC : SPRING_SMOOTH,
       });
 
@@ -899,7 +905,6 @@ function Stage({
               opacity: 0,
               y: -12,
               scale: 0.99,
-              filter: "blur(6px)",
               transition: { duration: 0.22, ease: EASE_EXIT },
             }
       }

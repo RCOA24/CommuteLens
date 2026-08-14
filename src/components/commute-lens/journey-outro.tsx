@@ -25,10 +25,11 @@ import { formatNumber, formatPeso } from "./format";
  * "come back soon" persuades nobody.
  *
  * Choreographed with the shared vocabulary in `@/lib/motion`, which is spring-led
- * after Apple's platform guidance. In practice that means three things here:
- * everything arrives from close range rather than flying in, the panel and the
- * headline resolve out of a blur instead of fading, and exactly one element — the
- * stamp — is allowed to overshoot. A screen where everything bounces has no accent.
+ * after Apple's platform guidance. In practice that means two things here:
+ * everything arrives from close range rather than flying in, and exactly one
+ * element — the stamp — is allowed to overshoot. A screen where everything bounces
+ * has no accent. Only opacity and transform move, so a mid-range phone can run the
+ * whole sequence on the compositor.
  *
  * It previously ran on GSAP, which meant two animation libraries and two
  * independent reduced-motion authorities: this screen gated itself on
@@ -137,8 +138,8 @@ export function JourneyOutro({
   const wordCue = (index: number) =>
     cue(
       reduceMotion,
-      { y: "115%", opacity: 0, filter: "blur(6px)" },
-      { y: "0%", opacity: 1, filter: "blur(0px)" },
+      { y: "115%", opacity: 0 },
+      { y: "0%", opacity: 1 },
       { duration: 0.85, delay: BEAT.word + stagger(index, 0.052, 0.75), ease: EASE_DECELERATE },
     );
 
@@ -150,7 +151,6 @@ export function JourneyOutro({
           delay: BEAT.panel,
           distance: 34,
           scale: 0.94,
-          blur: 14,
           transition: SPRING_CINEMATIC,
         })}
         className="ink-panel on-ink relative isolate overflow-hidden p-7 text-center sm:p-10"
@@ -205,7 +205,6 @@ export function JourneyOutro({
               delay: BEAT.line,
               distance: 10,
               scale: 1,
-              blur: 4,
               transition: SPRING_SMOOTH,
             })}
             className="inline-block"
@@ -240,7 +239,6 @@ export function JourneyOutro({
             delay: BEAT.figure,
             distance: 18,
             scale: 0.92,
-            blur: 10,
             transition: SPRING_SMOOTH,
           })}
           className="mt-6"
@@ -262,7 +260,6 @@ export function JourneyOutro({
             delay: BEAT.line + 0.16,
             distance: 14,
             scale: 1,
-            blur: 5,
           })}
           className="mx-auto mt-5 max-w-prose text-sm leading-relaxed text-paper/80"
         >
@@ -282,7 +279,6 @@ export function JourneyOutro({
             delay: BEAT.line + 0.32,
             distance: 14,
             scale: 1,
-            blur: 5,
           })}
           className="mx-auto mt-4 max-w-prose text-sm leading-relaxed text-paper/70"
         >
@@ -295,7 +291,6 @@ export function JourneyOutro({
               delay: BEAT.cta,
               distance: 16,
               scale: 0.96,
-              blur: 0,
               transition: SPRING_SMOOTH,
             })}
             className="inline-block"
@@ -310,7 +305,6 @@ export function JourneyOutro({
               delay: BEAT.cta + 0.09,
               distance: 16,
               scale: 0.96,
-              blur: 0,
               transition: SPRING_SMOOTH,
             })}
             className="inline-block"

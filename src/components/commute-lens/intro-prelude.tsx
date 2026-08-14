@@ -32,7 +32,9 @@ export function IntroPrelude({
   return (
     <motion.section
       className="relative isolate min-h-[calc(100svh-8rem)] overflow-hidden rounded-[2rem] bg-ink px-6 py-8 text-paper shadow-[0_26px_80px_rgba(16,42,43,0.22)] sm:px-10 sm:py-12 lg:min-h-[660px] lg:px-14 lg:py-14"
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.12, filter: "blur(8px)" }}
+      /* Scale only, no blur: this is a full-screen element, and blurring one on the
+         way out is the most expensive frame in the whole journey on a phone. */
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.12 }}
       transition={{
         duration: reduceMotion ? 0.08 : 0.46,
         ease: [0.22, 1, 0.36, 1],
@@ -70,7 +72,9 @@ export function IntroPrelude({
             {benefits.map((benefit, index) => (
               <li
                 key={benefit}
-                className="flex items-center gap-2 rounded-full border border-paper/18 bg-paper/8 px-3.5 py-2 text-xs font-bold text-paper/88 backdrop-blur-sm"
+                /* No backdrop blur: these pills animate in and the whole panel
+                   scales on exit, so a backdrop-filter here repaints every frame. */
+                className="flex items-center gap-2 rounded-full border border-paper/18 bg-paper/8 px-3.5 py-2 text-xs font-bold text-paper/88"
               >
                 {index === 0 ? (
                   <Navigation className="size-3.5 text-mint" aria-hidden="true" />

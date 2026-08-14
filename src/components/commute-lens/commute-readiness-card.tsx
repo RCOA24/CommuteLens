@@ -49,7 +49,10 @@ export function CommuteReadinessCard({
           <WeatherContext readiness={readiness} visual={weatherVisual} />
           <RouteFriction readiness={readiness} />
         </div>
-        <section className="mt-4 flex items-start gap-3 rounded-[0.9rem] bg-mint/60 p-4 backdrop-blur-[2px]">
+        {/* No backdrop blur: this card is inside a scroll-revealed section, and a
+            backdrop-filter under an animating ancestor repaints every frame. At 2px
+            it was invisible anyway. */}
+        <section className="mt-4 flex items-start gap-3 rounded-[0.9rem] bg-mint/60 p-4">
           <MapPinned className="mt-0.5 size-4 shrink-0 text-leaf" aria-hidden="true" />
           <div>
             <h3 className="text-[0.7rem] font-black tracking-[0.1em] uppercase">Hazard context</h3>

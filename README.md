@@ -37,6 +37,10 @@ This project is submitted to the **CUTC Transform Hackathon 2026**, with a focus
   prefilled with what the document states, each value shown next to the phrase it came from.
 - Optional commuter memory: a saved home area, fare entitlement, and working assumptions, plus a
   running shortlist of analyzed offers instead of a two-at-a-time comparison.
+- A closing summary reached by an explicit “Wrap up”, restating the figure and the hours behind it,
+  with a next step chosen from what the person actually did.
+- Animation that runs by default, with a one-click switch in the header that turns it off and stays
+  off.
 
 Commute Lens does not choose a job, calculate official payroll deductions, or claim official/current fares.
 
@@ -85,10 +89,77 @@ Application use cases
         ↓
 Domain calculations and models
         ↓
-Geoapify / BusMaps / OpenAI / demo provider adapters
+Geoapify / BusMaps / OpenAI / PaddleOCR / Backboard / demo provider adapters
 ```
 
 Route previews are validated and reused by analysis so the preview and receipt cannot independently reroute or consume quota twice. AI receives calculated facts only and falls back to deterministic wording if unavailable or rejected by guardrails.
+
+## The journey
+
+The presentation layer is a single state machine in `commute-lens-experience.tsx`. Each step is its
+own presentational component, so that file owns navigation, network calls, and entered values and
+nothing else.
+
+```text
+intro → commute setup → route preview → offer details → calculating → reality
+                                                                        ↓
+                                                        compare ←→ wrap up → outro
+```
+
+Two constraints are deliberate. A remote arrangement skips route discovery entirely. And the outro is
+reachable **only** from an explicit “Wrap up” on either the result or the comparison — finishing and
+starting over are different intentions, so they get different controls, and nothing is lost by
+finishing because the closing screen can return to the result.
+
+## Motion
+
+One animation library, one preference, one performance rule. The vocabulary lives in
+`src/lib/motion.ts` and is shared by every animated screen.
+
+**Springs, described the way a designer thinks.** Motion is spring-led after Apple's platform
+guidance, which treats springs as the default because they are interruptible and velocity-aware
+rather than replaying a fixed keyframe ([WWDC23, “Animate with springs”](https://developer.apple.com/videos/play/wwdc2023/10158/)).
+Springs are expressed as duration plus bounce — the pair SwiftUI exposes — so `SPRING_SMOOTH`,
+`SPRING_SNAPPY`, `SPRING_BOUNCY`, and `SPRING_CINEMATIC` read as intent instead of physics trivia.
+Every screen arrives with the same gesture and only the intensity varies; a journey where each step
+enters differently reads as a set of unrelated pages. Exactly one element per screen is allowed to
+overshoot, because a screen where everything bounces has no accent.
+
+**Only `opacity` and `transform` are animated. This is a hard rule.** Both are handled by the
+compositor, so the browser runs them without laying out or painting again. An earlier version also
+animated `filter: blur()`, which looked excellent on a desktop and made mid-range phones stutter: a
+blur cannot be composited, so every frame repaints the element and the backdrop behind it, and on a
+long page revealing sections mid-scroll that is the whole frame budget. `blur` is deliberately absent
+from `MaterializeOptions` so it cannot quietly return. For the same reason the sticky header's
+translucent `backdrop-filter` is desktop-only — on a sticky element it is re-evaluated every scroll
+frame — and small screens get an opaque bar that looks near-identical and costs nothing.
+
+**Long pages reveal on scroll.** `<Reveal>` animates a section the first time it enters the viewport
+and never again, so the result page assembles just ahead of the reader instead of finishing its
+animation off-screen before they arrive. Two exclusions matter: the receipt block is not wrapped,
+because `html-to-image` would capture an unrevealed section as blank; and a `@media print` rule
+forces opacity, filter, and transform back to normal with `!important`, because printing renders the
+whole document regardless of what has been scrolled to.
+
+**Animation is on by default, and that is a documented tradeoff.** `useMotionPreference` resolves an
+in-app choice over the OS setting and defaults to full motion, so the app does not follow
+`prefers-reduced-motion` unasked. That setting is switched on wholesale by battery savers and
+corporate machine images, which left visitors with a journey whose animation they could not see and
+did not know existed. This does not meet [Apple's Reduced Motion criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria/),
+and the mitigations are what keep it defensible: the off switch is in the header on every screen, the
+choice persists in local storage and syncs across tabs, `reduced` removes movement entirely rather
+than merely shortening it, and no information is conveyed by animation alone. Reverting to
+OS-following is a one-line change in `readPreference`, and is the right call for a wider audience.
+
+The resolved preference is published to `<html data-motion="full | reduced">` so CSS agrees with
+React; without it the global reduced-motion reset in `globals.css` would keep flattening transitions
+for someone who had asked for full motion. Reduced motion is passed down as a prop from a single
+subscription rather than each component reading the media query, so there is one authority. GSAP was
+removed once the closing screen moved to Motion — two libraries meant two independent reduced-motion
+authorities that could disagree, and they did.
+
+Content in this section was rephrased from Apple's developer documentation for compliance with
+licensing restrictions.
 
 ## Setup
 
@@ -107,20 +178,32 @@ plain: `BACKBOARD_API_KEY=<key>` with no quotes and no spaces around the `=`. `B
 defaults to a cheap model on purpose, because the reader only transcribes fields. Set
 `BACKBOARD_MEMORY=off` to keep reading but disable persistence.
 
-For an offline rehearsal, set both provider selectors to `demo`. For live routing, configure `BUSMAPS_API_KEY`; otherwise the server starts with the public archival GTFS route-pattern provider and falls back to distance when that dataset has no coverage. Set `TRANSIT_PROVIDER=gtfs` to test only the open-data path, or `OPEN_GTFS_ENABLED=false` to disable it. `OPEN_GTFS_URL` can point to another licensed GTFS ZIP. Configure `GEOAPIFY_API_KEY` for server-side geocoding and the same-origin map-tile proxy. Never expose Geoapify, BusMaps, Mobility, or OpenAI keys through `NEXT_PUBLIC_` variables.
+Add `PADDLEOCR_API_KEY` to read photos and scans well. `PADDLEOCR_MODEL` defaults to `PP-StructureV3`
+for speed; set it to `PaddleOCR-VL-1.6` when the inputs are poor phone photos. `PP-OCRv6` is not
+supported, because its job result exposes no text field. Keep `PADDLEOCR_TIMEOUT_MS` below your
+hosting platform's function `maxDuration`.
+
+Geocoding selects Geoapify when `GEOAPIFY_API_KEY` is set and falls back to Nominatim otherwise;
+`GEOCODING_PROVIDER` can force either, or `demo` for an offline rehearsal.
+
+For an offline rehearsal, set both provider selectors to `demo`. For live routing, configure `BUSMAPS_API_KEY`; otherwise the server starts with the public archival GTFS route-pattern provider and falls back to distance when that dataset has no coverage. Set `TRANSIT_PROVIDER=gtfs` to test only the open-data path, or `OPEN_GTFS_ENABLED=false` to disable it. `OPEN_GTFS_URL` can point to another licensed GTFS ZIP.
+
+Every integration key is server-side. Never expose Geoapify, BusMaps, Mobility, OpenAI, Backboard, or
+PaddleOCR keys through `NEXT_PUBLIC_` variables. The Geoapify key also serves the same-origin
+map-tile proxy, which exists so the browser never sees it.
 
 ## API
 
-| Endpoint                        | Purpose                                                    |
-| ------------------------------- | ---------------------------------------------------------- |
-| `POST /api/commute/route`       | Discover and normalize a route preview                     |
-| `POST /api/commute/analyze`     | Analyze one offer, optionally reusing its route preview    |
-| `POST /api/commute/compare`     | Compare two independently configured offers                |
-| `POST /api/explain`             | Generate a guarded AI or deterministic explanation         |
-| `POST /api/offer-document/extract` | Read an uploaded offer letter into a reviewable draft   |
-| `POST /api/commuter-profile`    | Create, recall, update, extend, or delete commuter memory   |
-| `GET /api/geocode/search?q=...` | Explicit submitted place search                            |
-| `POST /api/geocode/reverse`     | Reverse-geocode browser coordinates without URL parameters |
+| Endpoint                           | Purpose                                                    |
+| ---------------------------------- | ---------------------------------------------------------- |
+| `POST /api/commute/route`          | Discover and normalize a route preview                     |
+| `POST /api/commute/analyze`        | Analyze one offer, optionally reusing its route preview    |
+| `POST /api/commute/compare`        | Compare two independently configured offers                |
+| `POST /api/explain`                | Generate a guarded AI or deterministic explanation         |
+| `POST /api/offer-document/extract` | Read an uploaded offer letter into a reviewable draft      |
+| `POST /api/commuter-profile`       | Create, recall, update, extend, or delete commuter memory  |
+| `GET /api/geocode/search?q=...`    | Explicit submitted place search                            |
+| `POST /api/geocode/reverse`        | Reverse-geocode browser coordinates without URL parameters |
 
 Expensive endpoints have a best-effort in-memory rate limit. A multi-instance production deployment should replace it with a shared rate-limit store.
 
@@ -129,6 +212,26 @@ Expensive endpoints have a best-effort in-memory rate limit. A multi-instance pr
 Both features are additive and both are powered by [Backboard](https://docs.backboard.io). Without
 `BACKBOARD_API_KEY` the app behaves exactly as before: the offer form is typed by hand and the
 reading control reports that it is unavailable.
+
+**Reading runs in two stages, and the split is the point.** Text is extracted first, then fields are
+read out of that text:
+
+```text
+upload → local text extraction (PDF/DOCX) or PaddleOCR (photos, scans) → markdown text
+                                                                              ↓
+                                          Backboard field reader → guardrails → form prefill
+```
+
+Getting the source text first buys two things. Photos and scans are read far better by a dedicated OCR
+pipeline than by a general model, and holding the text means every extracted figure can be verified
+against it — a value the reader returns that does not appear in the source is marked unverified rather
+than trusted. Both OCR models return markdown, which preserves the pay tables offer letters often use.
+`PP-StructureV3` is the default because it is a layout pipeline rather than a vision-language model
+doing a full pass per page, and an offer letter is usually an upright page of prose and a table;
+`PaddleOCR-VL-1.6` reads creased, dim, and handwritten pages better and is worth the extra seconds when
+the input is a bad phone photo. Without `PADDLEOCR_API_KEY` the document is sent to Backboard as an
+attachment instead, so the feature degrades rather than disappearing. While a document is being read
+the UI rotates through progress lines, because a long silent wait reads as a hang.
 
 **Reading is transcription, not analysis.** The document reader may only copy what a document states.
 It is explicitly forbidden to do arithmetic, so a stated annual salary is converted to a monthly
@@ -149,7 +252,12 @@ Scoping is one Backboard assistant per anonymous commuter, and the assistant id 
 the browser's local storage. Possession of the handle is the whole authorization model — there are no
 accounts — so handles are validated as UUIDs before they reach a provider URL, and deletion removes
 the assistant and its memories in a single call. `forget` reports whether the deletion actually
-succeeded instead of optimistically claiming it did.
+succeeded instead of optimistically claiming it did. A handle whose assistant no longer exists is
+treated as already gone: an upstream 404 resolves deletion and recall idempotently instead of
+stranding the browser with a record it can neither read nor remove.
+
+The memory panel supports the full set — save, view verbatim, replace, remove one offer, remove
+everything — because a store the user cannot inspect or empty is not a feature they can consent to.
 
 ## Privacy and security
 
@@ -160,7 +268,11 @@ succeeded instead of optimistically claiming it did.
   store that reports itself as session-only rather than implying durability.
 - Uploaded offer documents are sent to Backboard for processing, are not written to disk by this app,
   and their processing thread is deleted after extraction.
-- A production privacy notice must name Backboard as a processor for these two features.
+- When `PADDLEOCR_API_KEY` is set, an uploaded document is also sent to PaddleOCR AI Studio for text
+  extraction. The file is held in memory for the duration of the request only.
+- A production privacy notice must name both Backboard and PaddleOCR AI Studio as processors for the
+  document-reading and memory features.
+- The animation preference is stored in the browser's local storage and is not sent anywhere.
 - Coordinates are sent to Geoapify and BusMaps when those providers are enabled.
 - Browser geolocation requires an explicit click and reports low-accuracy results.
 - Reverse-geocoding coordinates are sent in a POST body rather than a logged query string.
@@ -185,8 +297,9 @@ Unit and route-handler tests run without requiring live third-party calls.
 ## 60-second demo
 
 1. Search and select a real origin and office, then show the route-status badge.
-2. Drop in an offer letter, then point at the quotes: every prefilled field traces to a line in the
-   document, and the annual-to-monthly conversion was done by Commute Lens, not by the model.
+2. Drop in a photographed offer letter, then point at the quotes: every prefilled field traces to a
+   line in the document, unverified values are marked as such, and the annual-to-monthly conversion
+   was done by Commute Lens, not by the model.
 3. Enter an offer and explain the adjustable take-home assumption.
 4. Reveal cash after transport, effective hourly value, burden, and monthly commute hours.
 5. Move onsite days and state the marginal money/time impact.
@@ -194,6 +307,8 @@ Unit and route-handler tests run without requiring live third-party calls.
 7. Expand “How we calculated this” or request the guarded explanation.
 8. Save the setup and add the offer to the shortlist, then open “Exactly what is stored” and delete
    it — the memory layer is auditable and reversible, not a black box.
+9. Press “Wrap up” for the closing summary, then hit the header switch to show the same screen with
+   motion off — the animation is a layer over the content, never the content itself.
 
 ## Current scope
 

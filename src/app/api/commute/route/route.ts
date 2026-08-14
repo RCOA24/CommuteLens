@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deduplicateCommuteRoutes } from "@/application/route-preview/deduplicate-routes";
 import type { CommuteRoute } from "@/domain/models";
 import { getTransitProvider } from "@/providers/transit";
 import type { ApiResult } from "@/shared/types/api";
@@ -50,7 +51,7 @@ export async function POST(request: Request): Promise<Response> {
   if (result.status === "success")
     return Response.json({
       success: true,
-      data: { routes: result.routes.slice(0, 3) },
+      data: { routes: deduplicateCommuteRoutes(result.routes).slice(0, 3) },
     } satisfies RoutePreviewResult);
   return Response.json(
     {

@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { SPRING_SNAPPY } from "@/lib/motion";
 import { Equal, LoaderCircle, TrendingDown, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { SliderField } from "@/components/ui/slider-field";
@@ -96,7 +97,9 @@ export function ScenarioExplorer({
               initial={reduceMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-              transition={{ duration: reduceMotion ? 0.01 : 0.22 }}
+              /* A small, frequent state change as the slider moves: snappy, with
+                 just enough overshoot to register that the sentence changed. */
+              transition={reduceMotion ? { duration: 0.01 } : SPRING_SNAPPY}
               className="text-[0.95rem] leading-relaxed"
             >
               {dayDelta === 0 ? (

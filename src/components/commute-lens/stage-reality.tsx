@@ -27,7 +27,9 @@ import { CommuteDirectionsCard } from "./commute-directions-card";
 import { CommuteReadinessCard } from "./commute-readiness-card";
 import { CommuteViabilityPlanner } from "./commute-viability-planner";
 import { ActionButton } from "@/components/ui/action-button";
+import { Reveal } from "@/components/ui/reveal";
 import { Eyebrow } from "@/components/ui/typography";
+import { materialize } from "@/lib/motion";
 import { describeFareDiscount, type FarePolicyImpact } from "@/domain/fare";
 import type {
   CommuteAnalysis,
@@ -174,10 +176,10 @@ export function RealityStage({
       </header>
 
       {/* ---------- 1. The headline number ---------- */}
+      {/* Animates on mount rather than on scroll: it is above the fold and it is
+          the answer the reader came for, so it must not wait for anything. */}
       <motion.section
-        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+        {...materialize(reduceMotion, { distance: 26, scale: 0.98, blur: 10 })}
         className="ink-panel on-ink mt-5 overflow-hidden print:hidden"
       >
         <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
@@ -251,7 +253,12 @@ export function RealityStage({
       </motion.section>
 
       {/* ---------- 2, 3, 4. Cost, time, hourly value ---------- */}
-      <div className="mt-5 grid gap-5 md:grid-cols-3 print:hidden">
+      {/*
+        Everything from here down reveals as it scrolls into view. On a page this
+        long, animating it all on mount meant the lower two-thirds had finished
+        before the reader arrived, so the work happened off-screen and was wasted.
+      */}
+      <Reveal reduceMotion={reduceMotion} className="mt-5 grid gap-5 md:grid-cols-3 print:hidden">
         <MetricCard
           icon={<Wallet />}
           label="Monthly commute cost"
@@ -287,39 +294,39 @@ export function RealityStage({
           value={`${formatPeso(scenario.effectiveHourlyValue)}/hr`}
           detail={`Cash after transport spread across ${formatHours(scenario.effectiveMonthlyHours)} of paid work plus travel.`}
         />
-      </div>
+      </Reveal>
 
-      <div className="mt-5 print:hidden">
+      <Reveal reduceMotion={reduceMotion} className="mt-5 print:hidden">
         <BreakEvenCard
           analysis={analysis}
           monthlyCommuteFare={scenario.monthlyFare}
           scenarioDays={scenarioDays}
         />
-      </div>
+      </Reveal>
 
-      <div className="mt-5">
+      <Reveal reduceMotion={reduceMotion} className="mt-5">
         <CommuteViabilityPlanner
           plan={viabilityPlan}
           targetIncomeAfterCommute={viabilityTargetIncome}
           onTargetIncomeAfterCommuteChange={onViabilityTargetIncomeChange}
         />
-      </div>
+      </Reveal>
 
       {/* ---------- 5. Burden, and where the money goes ---------- */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-2 print:hidden">
+      <Reveal reduceMotion={reduceMotion} className="mt-5 grid gap-5 lg:grid-cols-2 print:hidden">
         <BurdenScale value={scenario.commuteBurdenPercentage} reduceMotion={reduceMotion} />
         <MoneyFlow analysis={analysis} scenario={scenario} reduceMotion={reduceMotion} />
-      </div>
+      </Reveal>
 
       {/* ---------- Fare policy watch ---------- */}
       {farePolicyImpact && (
-        <div className="mt-5">
+        <Reveal reduceMotion={reduceMotion} className="mt-5">
           <FarePolicyCard impact={farePolicyImpact} reduceMotion={reduceMotion} />
-        </div>
+        </Reveal>
       )}
 
       {/* ---------- Scenario exploration ---------- */}
-      <div className="mt-5">
+      <Reveal reduceMotion={reduceMotion} className="mt-5">
         <ScenarioExplorer
           baselineDays={baselineDays}
           scenario={scenario}
@@ -330,25 +337,25 @@ export function RealityStage({
           routeState={scenarioRouteState}
           reduceMotion={reduceMotion}
         />
-      </div>
+      </Reveal>
 
       {/* ---------- Practical route guidance ---------- */}
-      <div className="mt-5">
+      <Reveal reduceMotion={reduceMotion} className="mt-5">
         <CommuteDirectionsCard route={activeRoute} />
-      </div>
+      </Reveal>
 
-      <div className="mt-5">
+      <Reveal reduceMotion={reduceMotion} className="mt-5">
         <RouteResearchPanel
           route={activeRoute}
           plan={researchedRoutePlan}
           onPlanChange={onResearchedRoutePlanChange}
         />
-      </div>
+      </Reveal>
 
       {/* ---------- Readiness is transient and never changes financial analysis ---------- */}
-      <div className="mt-5">
+      <Reveal reduceMotion={reduceMotion} className="mt-5">
         <CommuteReadinessCard readiness={readiness} state={readinessState} />
-      </div>
+      </Reveal>
 
       {scenarioDiffersFromBaseline ? (
         <section className="app-panel mt-5 p-5 sm:p-6 print:hidden">
@@ -454,8 +461,14 @@ export function RealityStage({
         </div>
       </div>
 
-      {/* ---------- Onward to comparison ---------- */}
-      <section className="ink-panel on-ink mt-5 flex flex-col items-center px-6 py-10 text-center print:hidden">
+      {/* ---------- Onward to comparison ----------
+          The receipt block above is deliberately left unwrapped: it is captured by
+          html-to-image, and a section still waiting to be scrolled into view would
+          export as a blank rectangle. */}
+      <Reveal
+        reduceMotion={reduceMotion}
+        className="ink-panel on-ink mt-5 flex flex-col items-center px-6 py-10 text-center print:hidden"
+      >
         <Eyebrow tone="mint">Would another offer actually pay more?</Eyebrow>
         <h2 className="mt-3 max-w-xl font-headline text-2xl leading-tight font-black tracking-[-0.03em] sm:text-3xl">
           Put a second job beside this one and compare the life behind the salary.
@@ -465,7 +478,7 @@ export function RealityStage({
           Compare another job
           <ArrowRight className="size-4" aria-hidden="true" />
         </ActionButton>
-      </section>
+      </Reveal>
     </div>
   );
 }

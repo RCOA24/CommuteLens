@@ -1044,22 +1044,56 @@ button {
 
 /* ==========================================================================
    MOTION
-   Motion is also gated in JS via usePrefersReducedMotion so Motion One never
-   starts an animation the user did not ask for. This block covers CSS.
+   Motion is gated in JS via useMotionPreference, which also publishes the result
+   to <html data-motion="full | reduced">. This block is the CSS half, and it
+   respects the same override: a visitor who explicitly asks for full motion is
+   not overruled by their OS default, and one who asks for less gets less even if
+   their OS never said so.
+
+   `data-motion` is absent until hydration, so the media query still protects a
+   reduced-motion user during the very first paint.
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion="full"]) :is(*, *::before, *::after) {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 
-  .cl-button:not(:disabled):active {
+  :root:not([data-motion="full"]) .cl-button:not(:disabled):active {
     transform: none;
+  }
+}
+
+:root[data-motion="reduced"] :is(*, *::before, *::after) {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+:root[data-motion="reduced"] .cl-button:not(:disabled):active {
+  transform: none;
+}
+
+/*
+ * Print safety for scroll-triggered reveals.
+ *
+ * Sections revealed by <Reveal> sit at opacity 0 until they scroll into view, and
+ * printing renders the entire document regardless of what has been scrolled to —
+ * so anything not yet reached would print as a blank rectangle. `!important` in a
+ * stylesheet outranks the inline styles Motion writes, which makes this a reliable
+ * backstop rather than a race.
+ */
+@media print {
+  *,
+  *::before,
+  *::after {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
   }
 }
 
@@ -1777,7 +1811,12 @@ button {
   background-size: 120% 135%;
 }
 
-@media (prefers-reduced-motion: no-preference) {
+/*
+ * Gated on the resolved preference rather than the media query, so these run for
+ * anyone who opted into full motion. They are decorative, so leaving them still
+ * until hydration resolves the preference costs the reader nothing.
+ */
+:root[data-motion="full"] {
   .commute-weather-scene[data-weather="rain"] .commute-weather-rain {
     animation: commute-rain-fall 1.45s linear infinite;
   }

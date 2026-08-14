@@ -2,6 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import { ActionButton } from "@/components/ui/action-button";
+import { Reveal } from "@/components/ui/reveal";
 import { Eyebrow } from "@/components/ui/typography";
 
 /**
@@ -13,18 +14,28 @@ import { Eyebrow } from "@/components/ui/typography";
  * journey has no single mandatory last step.
  *
  * Nothing is lost by taking it: the closing screen can return to the result.
+ *
+ * It reveals on scroll rather than on mount, which also makes it self-timing:
+ * sitting at the very bottom of a long page, it cannot appear until the reader has
+ * worked their way down to it. Offering the exit before they have seen what they
+ * came for would be rushing them.
  */
 export function JourneyWrapUp({
   context,
+  reduceMotion,
   onFinish,
 }: {
   context: "reality" | "compare";
+  reduceMotion: boolean;
   onFinish: () => void;
 }) {
   const isAfterCompare = context === "compare";
 
   return (
-    <section className="app-panel mx-auto mt-6 max-w-5xl p-5 sm:p-6 print:hidden">
+    <Reveal
+      reduceMotion={reduceMotion}
+      className="app-panel mx-auto mt-6 max-w-5xl p-5 sm:p-6 print:hidden"
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <Eyebrow tone="flame">Last step</Eyebrow>
@@ -43,6 +54,6 @@ export function JourneyWrapUp({
           <ArrowRight className="size-4" aria-hidden="true" />
         </ActionButton>
       </div>
-    </section>
+    </Reveal>
   );
 }

@@ -3,7 +3,6 @@
 import { FileText, Info, Loader2, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState, type DragEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { OfferDocumentExtractionResult } from "@/app/api/offer-document/extract/route";
 import type {
   OfferDocumentExtraction,
@@ -90,8 +89,10 @@ function technicalDetail(extraction: OfferDocumentExtraction): string {
 }
 
 export function OfferDocumentUpload({
+  reduceMotion,
   onApply,
 }: {
+  reduceMotion: boolean;
   onApply: (extraction: OfferDocumentExtraction, officeCandidates: Location[]) => void;
 }) {
   const inputId = useId();
@@ -102,7 +103,6 @@ export function OfferDocumentUpload({
   const [problem, setProblem] = useState<{ message: string; detail: string | null } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [lineIndex, setLineIndex] = useState(0);
-  const reduceMotion = usePrefersReducedMotion();
 
   /*
    * Advance the reading lines only while a read is in flight. Reduced-motion users

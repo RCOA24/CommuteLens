@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import dynamic from "next/dynamic";
 import { Navigation } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { CommuteReadinessResult } from "@/app/api/commute/readiness/route";
@@ -30,11 +29,14 @@ import {
 import type { CommuteRoute, JobRealityAnalysis, Location, WorkArrangement } from "@/domain/models";
 import type { OfferDocumentExtraction } from "@/application/extract-offer-document/offer-extraction";
 import type { CommuterProfile } from "@/application/commuter-profile/memory";
-import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { EASE_EXIT, SPRING_CINEMATIC, SPRING_SMOOTH, materialize } from "@/lib/motion";
+import { useMotionPreference } from "@/hooks/use-motion-preference";
 import { useCommuterProfile, type CommuterProfileInput } from "@/hooks/use-commuter-profile";
 import { CommuterMemoryPanel, RememberedSetupBanner } from "./commuter-memory";
 import { ExtractionNotice } from "./extraction-notice";
+import { JourneyOutro } from "./journey-outro";
 import { JourneyWrapUp } from "./journey-wrap-up";
+import { MotionToggle } from "./motion-toggle";
 import { OfferDocumentUpload } from "./offer-document-upload";
 import { formatPeso } from "./format";
 import { IntroPrelude } from "./intro-prelude";
@@ -46,15 +48,6 @@ import { ComparisonStage } from "./stage-compare";
 import { OfferDetailsStage } from "./stage-offer";
 import { RoutePreviewStage } from "./stage-route";
 import { RealityStage } from "./stage-reality";
-
-/**
- * The closing screen carries GSAP, which nothing else in the journey needs. Split
- * out so the animation library is fetched only when someone actually finishes —
- * it should never sit in the bundle a first-time visitor downloads on mobile data.
- */
-const JourneyOutro = dynamic(() => import("./journey-outro").then((m) => m.JourneyOutro), {
-  ssr: false,
-});
 
 type Step = "commute" | "route" | "offer" | "calculating" | "reality" | "compare" | "outro";
 
@@ -114,7 +107,12 @@ const seed = PRIMARY_DEMO_SCENARIO;
  *    remote-to-onsite scenario genuinely needs a route.
  */
 export function CommuteLensExperience() {
-  const reduceMotion = usePrefersReducedMotion();
+  /*
+   * One subscription drives every animation in the tree. It reads the OS setting
+   * but lets an explicit in-app choice override it, so someone whose system asks
+   * for reduced motion can still opt into the journey's animation.
+   */
+  const { reduceMotion, systemPrefersReduced, setPreference } = useMotionPreference();
   const formId = useId();
   const routeRequestVersion = useRef(0);
   const readinessRequestVersion = useRef(0);
@@ -579,7 +577,12 @@ export function CommuteLensExperience() {
   /** Reached only from an explicit "Wrap up", never as a side effect of resetting. */
   function finishJourney() {
     setStep("outro");
-    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    /*
+     * Jumped, not smoothed. A smooth scroll runs for several hundred milliseconds
+     * while the closing sequence is already playing, so the opening beats happen
+     * off-screen and the animation looks like it started halfway through.
+     */
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
 
   function revealReality() {
@@ -650,11 +653,18 @@ export function CommuteLensExperience() {
               COMMUTE LENS
             </span>
           </button>
-          <p className="hidden text-right text-[0.68rem] leading-tight font-bold tracking-[0.1em] text-muted uppercase sm:block">
-            Salary is the headline.
-            <br />
-            Commute reality tells the full story.
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-right text-[0.68rem] leading-tight font-bold tracking-[0.1em] text-muted uppercase lg:block">
+              Salary is the headline.
+              <br />
+              Commute reality tells the full story.
+            </p>
+            <MotionToggle
+              reduceMotion={reduceMotion}
+              systemPrefersReduced={systemPrefersReduced}
+              onChange={setPreference}
+            />
+          </div>
         </header>
 
         {!isIntroVisible && <JourneyProgress activeIndex={PROGRESS_INDEX[step]} />}
@@ -713,7 +723,7 @@ export function CommuteLensExperience() {
           {step === "offer" && origin && destination && (
             <Stage key="offer" reduceMotion={reduceMotion}>
               <div className="grid gap-4 pt-6 lg:pt-10">
-                <OfferDocumentUpload onApply={applyExtraction} />
+                <OfferDocumentUpload reduceMotion={reduceMotion} onApply={applyExtraction} />
                 {appliedExtraction && (
                   <ExtractionNotice
                     extraction={appliedExtraction.extraction}
@@ -796,12 +806,16 @@ export function CommuteLensExperience() {
                 onForgetOffer={(offerId) => void memory.forgetOffer(offerId)}
                 onForgetAll={() => void memory.forget()}
               />
-              <JourneyWrapUp context="reality" onFinish={finishJourney} />
+              <JourneyWrapUp
+                context="reality"
+                reduceMotion={reduceMotion}
+                onFinish={finishJourney}
+              />
             </Stage>
           )}
 
           {step === "outro" && analysis && baselineScenario && (
-            <Stage key="outro" reduceMotion={reduceMotion} entrance="reveal">
+            <Stage key="outro" reduceMotion={reduceMotion} entrance="own">
               <JourneyOutro
                 title={analysis.jobOffer.title}
                 company={analysis.jobOffer.company}
@@ -809,6 +823,7 @@ export function CommuteLensExperience() {
                 monthlyCommuteHours={analysis.monthlyCommuteHours}
                 rememberedOffers={memory.offers.length}
                 hasCompared={hasCompared}
+                reduceMotion={reduceMotion}
                 onBackToResult={() => setStep(hasCompared ? "compare" : "reality")}
                 onPlanAnother={reset}
               />
@@ -822,7 +837,11 @@ export function CommuteLensExperience() {
                 reduceMotion={reduceMotion}
                 onBack={() => setStep("reality")}
               />
-              <JourneyWrapUp context="compare" onFinish={finishJourney} />
+              <JourneyWrapUp
+                context="compare"
+                reduceMotion={reduceMotion}
+                onFinish={finishJourney}
+              />
             </Stage>
           )}
         </AnimatePresence>
@@ -831,7 +850,22 @@ export function CommuteLensExperience() {
   );
 }
 
-/** Stage transitions use opacity and transforms only, so nothing reflows. */
+/**
+ * Stage transitions use opacity, transform, and blur only, so nothing reflows.
+ *
+ * Every screen arrives with the same gesture — rise slightly, resolve out of a
+ * blur, settle on a spring — because a journey where each step enters differently
+ * feels like a set of unrelated pages. Only the intensity varies:
+ *
+ *  - `reveal` is for a screen that is the answer to something (the result).
+ *  - `zoom` is for the first step, which has no predecessor to continue from.
+ *  - `own` is for screens that choreograph their own arrival, like the outro.
+ *    Animating the wrapper too would compound transforms and read as a wobble.
+ *
+ * Exits are a quick fade with a touch of blur. Leaving is not worth watching, and
+ * `AnimatePresence mode="wait"` means every exit is time the next screen spends
+ * waiting.
+ */
 function Stage({
   children,
   reduceMotion,
@@ -839,30 +873,37 @@ function Stage({
 }: {
   children: ReactNode;
   reduceMotion: boolean;
-  entrance?: "slide" | "zoom" | "reveal";
+  entrance?: "slide" | "zoom" | "reveal" | "own";
 }) {
-  const isZoomEntrance = entrance === "zoom";
-  const isRealityReveal = entrance === "reveal";
+  const isSelfChoreographed = entrance === "own";
+
+  const arrival = isSelfChoreographed
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.24 } }
+    : materialize(reduceMotion, {
+        distance: entrance === "reveal" ? 30 : entrance === "zoom" ? 20 : 16,
+        scale: entrance === "zoom" ? 0.94 : entrance === "reveal" ? 0.97 : 0.99,
+        blur: entrance === "slide" ? 5 : 10,
+        transition: entrance === "reveal" ? SPRING_CINEMATIC : SPRING_SMOOTH,
+      });
 
   return (
     <motion.div
-      initial={
+      initial={arrival.initial}
+      animate={arrival.animate}
+      /* The exit carries its own timing so it stays brisk instead of inheriting
+         the entrance spring, which would hold up the incoming screen. */
+      exit={
         reduceMotion
-          ? { opacity: 0 }
-          : isZoomEntrance
-            ? { opacity: 0, scale: 0.9, y: 18 }
-            : isRealityReveal
-              ? { opacity: 0, scale: 0.97, y: 32 }
-              : { opacity: 0, x: 16 }
+          ? { opacity: 0, transition: { duration: 0.08 } }
+          : {
+              opacity: 0,
+              y: -12,
+              scale: 0.99,
+              filter: "blur(6px)",
+              transition: { duration: 0.22, ease: EASE_EXIT },
+            }
       }
-      animate={
-        isZoomEntrance || isRealityReveal ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, x: 0 }
-      }
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
-      transition={{
-        duration: reduceMotion ? 0.08 : isRealityReveal ? 0.62 : isZoomEntrance ? 0.46 : 0.28,
-        ease: [0.22, 1, 0.36, 1],
-      }}
+      transition={reduceMotion ? { duration: 0.08 } : (arrival.transition ?? { duration: 0.24 })}
     >
       {children}
     </motion.div>

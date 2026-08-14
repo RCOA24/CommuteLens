@@ -35,6 +35,7 @@ export function CustomSelect({
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = `${id}-listbox`;
+  const labelId = `${id}-label`;
 
   const selectedOption = options.find((o) => o.value === value);
 
@@ -96,7 +97,17 @@ export function CustomSelect({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-1.5 block text-[0.68rem] font-bold tracking-[0.14em] text-muted uppercase">
+      {/*
+        role="combobox" takes its name from the author only, so the trigger's
+        own text does not name it — without aria-labelledby a screen reader
+        announces "combobox" with no indication of which field it is. htmlFor
+        additionally makes the label click through to the trigger.
+      */}
+      <label
+        id={labelId}
+        htmlFor={id}
+        className="mb-1.5 block text-[0.68rem] font-bold tracking-[0.14em] text-muted uppercase"
+      >
         {label}
       </label>
       <button
@@ -107,6 +118,7 @@ export function CustomSelect({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         role="combobox"
+        aria-labelledby={labelId}
         aria-expanded={isOpen}
         aria-controls={listboxId}
         aria-haspopup="listbox"
@@ -126,6 +138,7 @@ export function CustomSelect({
         <ul
           id={listboxId}
           role="listbox"
+          aria-labelledby={labelId}
           className="absolute top-full left-0 z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-ink/10 bg-white py-1 shadow-lg"
         >
           {options.map((option, index) => (

@@ -1,5 +1,10 @@
-import { summarizeProvenance } from "@/data/demo";
-import type { CommuteSegment, JobRealityAnalysis, TransportMode } from "@/domain/models";
+import { PROVENANCE_DESCRIPTORS, summarizeProvenance } from "@/data/demo";
+import type {
+  DataSource,
+  CommuteSegment,
+  JobRealityAnalysis,
+  TransportMode,
+} from "@/domain/models";
 
 const peso = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -67,6 +72,7 @@ interface JobRealityReceiptProps {
  */
 export function JobRealityReceipt({ analysis, issuedAt }: JobRealityReceiptProps) {
   const provenance = summarizeProvenance(analysis.sources);
+  const vintage = formatDataVintage(analysis.sources);
   const segments = analysis.commute.segments;
   const hasRoute = segments.length > 0;
 
@@ -215,7 +221,10 @@ export function JobRealityReceipt({ analysis, issuedAt }: JobRealityReceiptProps
 
         {/* Footer / provenance */}
         <footer className="ticket-footer">
-          <div className="ticket-provenance-badge">
+          <div
+            className="ticket-provenance-badge"
+            data-tone={provenance ? provenance.weakest.tone : "caution"}
+          >
             {provenance ? provenance.weakest.shortLabel.toUpperCase() : "ESTIMATED"}
           </div>
           <p className="ticket-disclaimer">
@@ -224,6 +233,7 @@ export function JobRealityReceipt({ analysis, issuedAt }: JobRealityReceiptProps
             {provenance && provenance.sourceNames.length > 0
               ? ` Sources: ${provenance.sourceNames.join(", ")}.`
               : null}
+            {vintage ? ` Data as of ${vintage}.` : null}
           </p>
           <p className="ticket-tagline">Know what the job really costs.</p>
         </footer>
@@ -232,6 +242,57 @@ export function JobRealityReceipt({ analysis, issuedAt }: JobRealityReceiptProps
       {/* Perforated bottom edge */}
       <div className="ticket-perforation ticket-perforation--bottom" aria-hidden="true" />
     </section>
+  );
+}
+
+/**
+ * CL-014 — how old the underlying data is, for the footer disclosure.
+ *
+ * [ASSUMPTION] The task says M3 supplies provenance metadata and M2 renders it,
+ * but it does not say which date to show when sources disagree. The earliest
+ * wins here: a receipt must not imply its data is fresher than its oldest
+ * input. If M3 would rather own this, it belongs on `ProvenanceSummary` and
+ * this helper should go away.
+ *
+ * Selection and formatting only — no metric is derived here. Returns null when
+ * no source dates itself, in which case the receipt omits the claim rather than
+ * guessing one.
+ */
+function formatDataVintage(sources: readonly DataSource[]): string | null {
+  // ISO-8601 dates sort lexicographically, so no parsing is needed to compare.
+  const dated = sources
+    .map((source) => source.effectiveDate)
+    .filter((date): date is string => Boolean(date))
+    .sort();
+  if (dated.length === 0) return null;
+
+  const earliest = new Date(dated[0]);
+  if (Number.isNaN(earliest.getTime())) return null;
+
+  return earliest.toLocaleDateString("en-PH", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/**
+ * CL-014 — labels one segment with where its fare and duration came from.
+ *
+ * A route can mix provenance: a curated rail leg beside a jeepney fare that is
+ * only estimated from a published band. Summarising the route with a single
+ * badge would hide that, so every segment carries its own label. The visible
+ * text is deliberately terse for the 80mm receipt; the full descriptor goes to
+ * assistive tech and to the tooltip.
+ */
+function SegmentProvenance({ source }: { source: DataSource }) {
+  const descriptor = PROVENANCE_DESCRIPTORS[source.type];
+
+  return (
+    <span className="route-stop-source" data-tone={descriptor.tone} title={descriptor.label}>
+      <span className="sr-only">Data source: </span>
+      {descriptor.shortLabel}
+    </span>
   );
 }
 
@@ -252,6 +313,7 @@ function RouteTimeline({ segments }: { segments: CommuteSegment[] }) {
                 {MODE_ICONS[segment.mode]}
               </span>
               <span className="route-stop-mode">{MODE_LABELS[segment.mode]}</span>
+              <SegmentProvenance source={segment.source} />
               <span className="route-stop-detail">
                 {segment.estimatedDurationMinutes}min • {pesoDecimal.format(segment.estimatedFare)}
               </span>

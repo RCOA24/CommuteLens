@@ -305,6 +305,9 @@ button {
 }
 
 .currency-field input {
+  /* The wrapper is a div, not a label, so only the input itself takes a tap.
+     Stretching it to the field height keeps the whole control tappable. */
+  align-self: stretch;
   min-width: 0;
   flex: 1;
   border: 0;
@@ -345,6 +348,8 @@ button {
 }
 
 .unit-field input {
+  /* Same as .currency-field: the wrapper is a div, so only the input takes a tap. */
+  align-self: stretch;
   min-width: 0;
   flex: 1;
   border: 0;
@@ -968,6 +973,12 @@ button {
   font-size: 0.6rem;
 }
 
+/* MapLibre ships 29px zoom buttons, below the 44px touch minimum. */
+.route-map .maplibregl-ctrl-group button {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
 .route-map-status {
   display: flex;
   gap: 0.6rem;
@@ -1435,6 +1446,16 @@ button {
   margin-bottom: 0.5rem;
 }
 
+/* CL-014 — a solid badge reads as a warning, so reserve it for the "caution"
+   tone (demo and estimated data). Verified sources get a quieter outline
+   instead of shouting at the user about data that is fine. */
+.ticket-provenance-badge[data-tone="neutral"],
+.ticket-provenance-badge[data-tone="informational"] {
+  background: transparent;
+  color: var(--ticket-ink);
+  border: 1px solid var(--ticket-ink);
+}
+
 .ticket-disclaimer {
   font-size: 0.58rem;
   line-height: 1.5;
@@ -1522,10 +1543,31 @@ button {
 .route-stop-transport {
   display: flex;
   align-items: center;
+  /* Wraps rather than overflows once the provenance tag joins the row: the
+     80mm receipt has no horizontal room to spare. */
+  flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: 0.2rem;
   font-size: 0.65rem;
   color: var(--ticket-muted);
+}
+
+/* CL-014 — per-segment provenance tag. Every segment states where its fare
+   and duration came from, so a curated leg is never mistaken for a verified
+   one. Tone comes from the descriptor, not from the call site. */
+.route-stop-source {
+  padding: 0 0.25rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.route-stop-source[data-tone="caution"] {
+  color: var(--ticket-ink);
 }
 
 .route-stop-icon {
@@ -1550,6 +1592,28 @@ button {
   @page {
     size: 80mm auto;
     margin: 2mm 0;
+  }
+
+  /*
+   * The comparison is a two-column table and is unreadable squeezed onto 80mm
+   * receipt paper, so it claims its own named page. Named pages need Chrome
+   * 110+ / Firefox 110+; older engines fall back to the 80mm page above, which
+   * still prints every value, just narrow.
+   */
+  @page comparison {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  .comparison-print {
+    page: comparison;
+  }
+
+  /* Emphasis and winner marking are meaningless if the browser strips them. */
+  .comparison-print,
+  .comparison-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   body {

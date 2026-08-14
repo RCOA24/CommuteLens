@@ -1,6 +1,26 @@
-# Commute Lens
+# CommuteLens
 
-Commute Lens is a Philippines-first job decision tool built for the CUTC: Transform Hackathon. It shows how transport money and unpaid commute time change the lived value of a job offer.
+> **CUTC Transform Hackathon 2026 submission**
+
+## The problem: a salary is not the full value of a job
+
+For many Filipino workers, accepting a job is also a daily transportation decision. A higher salary can disappear into fares, fuel, parking, and ride-hailing costs. Long transfers and traffic can consume hours every week—time taken away from sleep, family, study, and personal recovery. Yet most job comparisons show only the monthly salary and hide the cost of getting to work.
+
+This creates a practical information gap, especially for workers comparing onsite, hybrid, and remote opportunities across Metro Manila and nearby communities. The “better” offer on paper may leave someone with less money, less usable time, and a heavier daily burden.
+
+## The solution: CommuteLens
+
+CommuteLens is a Philippines-first job decision tool that turns commute conditions into an understandable part of offer evaluation. It combines a job offer, work arrangement, commute route, transport cost, and travel time to estimate what the opportunity is worth in real life—not just what it pays on paper.
+
+Instead of telling people which job to choose, CommuteLens helps them ask better questions:
+
+- How much take-home pay remains after getting to work?
+- How many hours each month will the commute consume?
+- Does a higher salary still lead to a higher effective hourly value?
+- How does the answer change across 0–5 onsite days per week?
+- Which of two offers is more sustainable for this person’s actual routine?
+
+This project is submitted to the **CUTC Transform Hackathon 2026**, with a focus on using technology and responsible data interpretation to make everyday work decisions more transparent and grounded in lived experience.
 
 ## What users get
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { Navigation } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { CommuteReadinessResult } from "@/app/api/commute/readiness/route";
@@ -18,13 +19,23 @@ import { calculateCommuteViabilityPlan } from "@/domain/job/commute-viability";
 import { calculateJobScenario, diffJobScenarios } from "@/domain/job/scenario";
 import {
   DEFAULT_HYBRID_SCHEDULE,
+  WEEKDAYS,
   countOnsiteDays,
   countWorkingDays,
   deriveWorkArrangement,
   scheduleForArrangement,
+  scheduleFromLegacy,
+  type WeeklyWorkSchedule,
 } from "@/domain/work-schedule";
 import type { CommuteRoute, JobRealityAnalysis, Location, WorkArrangement } from "@/domain/models";
+import type { OfferDocumentExtraction } from "@/application/extract-offer-document/offer-extraction";
+import type { CommuterProfile } from "@/application/commuter-profile/memory";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { useCommuterProfile, type CommuterProfileInput } from "@/hooks/use-commuter-profile";
+import { CommuterMemoryPanel, RememberedSetupBanner } from "./commuter-memory";
+import { ExtractionNotice } from "./extraction-notice";
+import { JourneyWrapUp } from "./journey-wrap-up";
+import { OfferDocumentUpload } from "./offer-document-upload";
 import { formatPeso } from "./format";
 import { IntroPrelude } from "./intro-prelude";
 import { JourneyProgress } from "./journey-progress";
@@ -36,7 +47,45 @@ import { OfferDetailsStage } from "./stage-offer";
 import { RoutePreviewStage } from "./stage-route";
 import { RealityStage } from "./stage-reality";
 
-type Step = "commute" | "route" | "offer" | "calculating" | "reality" | "compare";
+/**
+ * The closing screen carries GSAP, which nothing else in the journey needs. Split
+ * out so the animation library is fetched only when someone actually finishes —
+ * it should never sit in the bundle a first-time visitor downloads on mobile data.
+ */
+const JourneyOutro = dynamic(() => import("./journey-outro").then((m) => m.JourneyOutro), {
+  ssr: false,
+});
+
+type Step = "commute" | "route" | "offer" | "calculating" | "reality" | "compare" | "outro";
+
+/**
+ * Turns an extracted arrangement and day count into a weekly schedule.
+ *
+ * The schedule is the calculation's only source of truth for onsite days, so an
+ * extracted count has to be expressed as one. A stated working-day total is
+ * honoured by promoting or demoting non-onsite days; onsite days are never moved,
+ * because those came from the document.
+ */
+function scheduleFromExtraction(
+  arrangement: WorkArrangement,
+  onsiteDaysPerWeek: number | null,
+  workingDaysPerWeek: number | null,
+  fallback: WeeklyWorkSchedule,
+): WeeklyWorkSchedule {
+  const onsiteDays = onsiteDaysPerWeek ?? countOnsiteDays(fallback);
+  const schedule = scheduleFromLegacy(arrangement, onsiteDays);
+  if (workingDaysPerWeek === null) return schedule;
+
+  for (const day of WEEKDAYS) {
+    if (countWorkingDays(schedule) >= workingDaysPerWeek) break;
+    if (schedule[day] === "off") schedule[day] = "wfh";
+  }
+  for (const day of [...WEEKDAYS].reverse()) {
+    if (countWorkingDays(schedule) <= workingDaysPerWeek) break;
+    if (schedule[day] === "wfh") schedule[day] = "off";
+  }
+  return schedule;
+}
 
 const PROGRESS_INDEX: Record<Step, number> = {
   commute: 0,
@@ -45,6 +94,7 @@ const PROGRESS_INDEX: Record<Step, number> = {
   calculating: 1,
   reality: 2,
   compare: 3,
+  outro: 3,
 };
 
 const seed = PRIMARY_DEMO_SCENARIO;
@@ -108,6 +158,24 @@ export function CommuteLensExperience() {
   const [readiness, setReadiness] = useState<CommuteReadiness | null>(null);
   const [readinessState, setReadinessState] = useState<"idle" | "loading" | "unavailable">("idle");
   const [viabilityTargetIncome, setViabilityTargetIncome] = useState(0);
+
+  /*
+   * Backboard-backed additions.
+   *
+   * `appliedExtraction` keeps the pre-fill snapshot alongside the result so the
+   * user can undo a document read in one click. Memory lives in its own hook and
+   * stores nothing until the user asks for it.
+   */
+  const [appliedExtraction, setAppliedExtraction] = useState<{
+    extraction: OfferDocumentExtraction;
+    officeCandidates: readonly Location[];
+    previousDraft: OfferDraft;
+    previousArrangement: WorkArrangement;
+  } | null>(null);
+  const [isRememberedSetupDismissed, setIsRememberedSetupDismissed] = useState(false);
+  /** Lets the closing screen reflect what the user actually did. */
+  const [hasCompared, setHasCompared] = useState(false);
+  const memory = useCommuterProfile();
 
   useLayoutEffect(() => {
     if (isIntroVisible) return;
@@ -279,6 +347,32 @@ export function CommuteLensExperience() {
     void loadFareConfirmations(nextRoute, fareClass, routeRequestVersion.current);
   }
 
+  /**
+   * The analyze request body. Shared with the memory layer so a remembered offer
+   * is recalculated from exactly the inputs that produced the receipt.
+   */
+  function buildAnalyzePayload(nextOrigin: Location, nextDestination: Location) {
+    const weeklySchedule = draft.weeklySchedule ?? scheduleForArrangement(arrangement);
+    return {
+      origin: nextOrigin,
+      route,
+      discountClass: fareClass,
+      jobOffer: {
+        id: `job-${crypto.randomUUID()}`,
+        title: draft.title.trim(),
+        company: draft.company.trim(),
+        monthlySalary: Number(draft.salary),
+        officeLocation: nextDestination,
+        workArrangement: deriveWorkArrangement(weeklySchedule),
+        onsiteDaysPerWeek: countOnsiteDays(weeklySchedule),
+        workingDaysPerWeek: countWorkingDays(weeklySchedule),
+        weeklySchedule,
+        workingHoursPerDay: Number(draft.workingHours),
+        payrollDeductions: draft.payrollDeductions ?? { ...DEFAULT_PAYROLL_DEDUCTIONS },
+      },
+    };
+  }
+
   async function calculate() {
     if (!origin || !destination) {
       setOfferError("Choose an origin and destination before calculating.");
@@ -289,28 +383,8 @@ export function CommuteLensExperience() {
     const requestVersion = ++calculationRequestVersion.current;
     setStep("calculating");
 
-    const weeklySchedule = draft.weeklySchedule ?? scheduleForArrangement(arrangement);
-    const calculatedOnsiteDays = countOnsiteDays(weeklySchedule);
-    const calculatedWorkingDays = countWorkingDays(weeklySchedule);
-    const calculatedArrangement = deriveWorkArrangement(weeklySchedule);
-    const payload = {
-      origin,
-      route,
-      discountClass: fareClass,
-      jobOffer: {
-        id: `job-${crypto.randomUUID()}`,
-        title: draft.title.trim(),
-        company: draft.company.trim(),
-        monthlySalary: Number(draft.salary),
-        officeLocation: destination,
-        workArrangement: calculatedArrangement,
-        onsiteDaysPerWeek: calculatedOnsiteDays,
-        workingDaysPerWeek: calculatedWorkingDays,
-        weeklySchedule,
-        workingHoursPerDay: Number(draft.workingHours),
-        payrollDeductions: draft.payrollDeductions ?? { ...DEFAULT_PAYROLL_DEDUCTIONS },
-      },
-    };
+    const payload = buildAnalyzePayload(origin, destination);
+    const calculatedOnsiteDays = payload.jobOffer.onsiteDaysPerWeek;
 
     try {
       /*
@@ -386,10 +460,126 @@ export function CommuteLensExperience() {
     }
   }
 
+  /**
+   * Applies a document read to the offer draft.
+   *
+   * It deliberately does not touch the priced route. A document can restate the
+   * schedule, and the schedule is what the calculation reads, but the origin and
+   * office pair is the user's own choice from step one — replacing it silently
+   * would discard a route they already reviewed. A different office is offered as
+   * an explicit action instead.
+   */
+  function applyExtraction(
+    extraction: OfferDocumentExtraction,
+    officeCandidates: readonly Location[],
+  ) {
+    const { fields } = extraction;
+    const patch: Partial<OfferDraft> = {};
+    if (fields.title !== null) patch.title = fields.title;
+    if (fields.company !== null) patch.company = fields.company;
+    if (fields.monthlySalary !== null) patch.salary = String(fields.monthlySalary);
+    if (fields.workingHoursPerDay !== null) patch.workingHours = String(fields.workingHoursPerDay);
+
+    const nextArrangement = fields.workArrangement ?? arrangement;
+    if (fields.workArrangement !== null || fields.onsiteDaysPerWeek !== null) {
+      patch.weeklySchedule = scheduleFromExtraction(
+        nextArrangement,
+        fields.onsiteDaysPerWeek,
+        fields.workingDaysPerWeek,
+        draft.weeklySchedule ?? scheduleForArrangement(arrangement),
+      );
+    }
+
+    setAppliedExtraction({
+      extraction,
+      officeCandidates,
+      previousDraft: draft,
+      previousArrangement: arrangement,
+    });
+    setDraft((current) => ({ ...current, ...patch }));
+    // A plain setter, not selectArrangement: see the note above on the route.
+    setArrangement(nextArrangement);
+    setOfferError(null);
+  }
+
+  function undoExtraction() {
+    if (!appliedExtraction) return;
+    setDraft(appliedExtraction.previousDraft);
+    setArrangement(appliedExtraction.previousArrangement);
+    setAppliedExtraction(null);
+  }
+
+  /** Switching office invalidates the priced route, so it returns to step one. */
+  function useExtractedOffice(location: Location) {
+    setAppliedExtraction(null);
+    selectDestination(location);
+    setStep("commute");
+  }
+
+  function rememberSetup() {
+    const weeklySchedule = draft.weeklySchedule ?? scheduleForArrangement(arrangement);
+    const workingHours = Number(draft.workingHours);
+    const takeHome = Number(draft.takeHomePercent);
+    const profile: CommuterProfileInput = {
+      homeLabel: origin?.label ?? null,
+      homeCoordinate: origin?.coordinate ?? null,
+      fareClass,
+      workArrangement: deriveWorkArrangement(weeklySchedule),
+      workingHoursPerDay: Number.isFinite(workingHours) && workingHours > 0 ? workingHours : null,
+      takeHomePercent: Number.isFinite(takeHome) && takeHome >= 50 ? takeHome : null,
+      // Not inferred from the current trip: a commute the user priced is not the
+      // same as a commute they said they could tolerate.
+      maxOneWayMinutes: null,
+    };
+    void memory.remember(profile);
+  }
+
+  function applyRememberedSetup(profile: CommuterProfile) {
+    setIsRememberedSetupDismissed(true);
+    if (profile.homeLabel && profile.homeCoordinate) {
+      selectOrigin({ label: profile.homeLabel, coordinate: profile.homeCoordinate });
+    }
+    if (profile.fareClass) selectFareClass(profile.fareClass);
+    if (profile.workArrangement) selectArrangement(profile.workArrangement);
+    setDraft((current) => ({
+      ...current,
+      workingHours:
+        profile.workingHoursPerDay !== null
+          ? String(profile.workingHoursPerDay)
+          : current.workingHours,
+      takeHomePercent:
+        profile.takeHomePercent !== null
+          ? String(profile.takeHomePercent)
+          : current.takeHomePercent,
+    }));
+  }
+
+  function rememberCurrentOffer() {
+    if (!origin || !destination) return;
+    void memory.rememberOffer(buildAnalyzePayload(origin, destination));
+  }
+
   function returnToOfferFromCalculation() {
     calculationRequestVersion.current += 1;
     setIsCalculationReady(false);
     setStep("offer");
+  }
+
+  /**
+   * "Start over" now closes the journey properly first.
+   *
+   * The reset itself is unchanged and still one click away; this only inserts the
+   * closing beat, which is also where the reason to run a second offer lives.
+   */
+  function startComparison() {
+    setHasCompared(true);
+    setStep("compare");
+  }
+
+  /** Reached only from an explicit "Wrap up", never as a side effect of resetting. */
+  function finishJourney() {
+    setStep("outro");
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   }
 
   function revealReality() {
@@ -414,6 +604,8 @@ export function CommuteLensExperience() {
     setReadinessState("idle");
     setIsCalculationReady(false);
     setViabilityTargetIncome(0);
+    setAppliedExtraction(null);
+    setHasCompared(false);
     setStep("commute");
     setCommuteError(null);
     setOfferError(null);
@@ -473,6 +665,13 @@ export function CommuteLensExperience() {
           ) : (
             step === "commute" && (
               <Stage key="commute" reduceMotion={reduceMotion} entrance="zoom">
+                {memory.profile && !isRememberedSetupDismissed && (
+                  <RememberedSetupBanner
+                    profile={memory.profile}
+                    onApply={() => applyRememberedSetup(memory.profile as CommuterProfile)}
+                    onForget={() => void memory.forget()}
+                  />
+                )}
                 <CommuteSetupStage
                   idPrefix={formId}
                   origin={origin}
@@ -513,6 +712,18 @@ export function CommuteLensExperience() {
 
           {step === "offer" && origin && destination && (
             <Stage key="offer" reduceMotion={reduceMotion}>
+              <div className="grid gap-4 pt-6 lg:pt-10">
+                <OfferDocumentUpload onApply={applyExtraction} />
+                {appliedExtraction && (
+                  <ExtractionNotice
+                    extraction={appliedExtraction.extraction}
+                    officeCandidates={appliedExtraction.officeCandidates}
+                    currentOfficeLabel={destination.label}
+                    onUseOffice={useExtractedOffice}
+                    onUndo={undoExtraction}
+                  />
+                )}
+              </div>
               <OfferDetailsStage
                 idPrefix={formId}
                 origin={origin}
@@ -574,8 +785,32 @@ export function CommuteLensExperience() {
                 onResearchedRoutePlanChange={setResearchedRoutePlan}
                 reduceMotion={reduceMotion}
                 onEdit={() => setStep("offer")}
-                onCompare={() => setStep("compare")}
+                onCompare={startComparison}
+                /* "Start over" means start over. Finishing has its own control. */
                 onReset={reset}
+              />
+              <CommuterMemoryPanel
+                memory={memory}
+                onRememberSetup={rememberSetup}
+                onRememberOffer={rememberCurrentOffer}
+                onForgetOffer={(offerId) => void memory.forgetOffer(offerId)}
+                onForgetAll={() => void memory.forget()}
+              />
+              <JourneyWrapUp context="reality" onFinish={finishJourney} />
+            </Stage>
+          )}
+
+          {step === "outro" && analysis && baselineScenario && (
+            <Stage key="outro" reduceMotion={reduceMotion} entrance="reveal">
+              <JourneyOutro
+                title={analysis.jobOffer.title}
+                company={analysis.jobOffer.company}
+                incomeAfterCommute={baselineScenario.incomeAfterCommute}
+                monthlyCommuteHours={analysis.monthlyCommuteHours}
+                rememberedOffers={memory.offers.length}
+                hasCompared={hasCompared}
+                onBackToResult={() => setStep(hasCompared ? "compare" : "reality")}
+                onPlanAnother={reset}
               />
             </Stage>
           )}
@@ -587,6 +822,7 @@ export function CommuteLensExperience() {
                 reduceMotion={reduceMotion}
                 onBack={() => setStep("reality")}
               />
+              <JourneyWrapUp context="compare" onFinish={finishJourney} />
             </Stage>
           )}
         </AnimatePresence>

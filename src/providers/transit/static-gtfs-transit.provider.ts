@@ -76,13 +76,12 @@ function transitMinutes(leg: GtfsLeg): number | null {
   return seconds > 0 ? Math.max(1, Math.round(seconds / 60) + leg.extraMinutes) : null;
 }
 
-function nearestStops(
-  index: StaticGtfsIndex,
-  location: Location,
-  radiusKm: number,
-): NearbyStop[] {
+function nearestStops(index: StaticGtfsIndex, location: Location, radiusKm: number): NearbyStop[] {
   return [...index.stops.values()]
-    .map((stop) => ({ stop, distanceKm: distanceKm(location.coordinate, stop.location.coordinate) }))
+    .map((stop) => ({
+      stop,
+      distanceKm: distanceKm(location.coordinate, stop.location.coordinate),
+    }))
     .filter((candidate) => candidate.distanceKm <= radiusKm)
     .sort((left, right) => left.distanceKm - right.distanceKm)
     .slice(0, NEARBY_STOP_LIMIT);

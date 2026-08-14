@@ -128,11 +128,7 @@ export function CalculatingStage({
             transition={{ duration: reduceMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
             <p className="text-sm font-bold">Your commute reality is ready to review.</p>
-            <ActionButton
-              className="mt-3 w-full"
-              onClick={startReveal}
-              disabled={isRevealing}
-            >
+            <ActionButton className="mt-3 w-full" onClick={startReveal} disabled={isRevealing}>
               {isRevealing ? "Revealing your reality…" : "View my commute reality"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </ActionButton>
@@ -185,8 +181,13 @@ export function CalculatingStage({
               <p className="mt-2 font-headline text-4xl leading-[0.95] font-black tracking-[-0.045em] sm:text-5xl">
                 Your commute reality
               </p>
-              <p className="mt-3 text-sm text-paper/70">Turning the headline salary into the full story.</p>
-              <div className="mx-auto mt-7 h-1 w-48 overflow-hidden rounded-full bg-paper/15" aria-hidden="true">
+              <p className="mt-3 text-sm text-paper/70">
+                Turning the headline salary into the full story.
+              </p>
+              <div
+                className="mx-auto mt-7 h-1 w-48 overflow-hidden rounded-full bg-paper/15"
+                aria-hidden="true"
+              >
                 <motion.div
                   className="h-full origin-left rounded-full bg-mint"
                   initial={{ scaleX: 0 }}

@@ -10,10 +10,7 @@ import { commuteRouteSchema } from "@/shared/validation/domain-schemas";
 
 const requestSchema = z.object({ routes: z.array(commuteRouteSchema).min(1).max(3) });
 
-export type CommuteRecommendationResult = ApiResult<
-  CommuteRouteRecommendation,
-  "INVALID_INPUT"
->;
+export type CommuteRecommendationResult = ApiResult<CommuteRouteRecommendation, "INVALID_INPUT">;
 
 /**
  * Recommends only among provider-returned route candidates. It deliberately
@@ -52,5 +49,8 @@ export async function POST(request: Request): Promise<Response> {
     parsed.data.routes,
     provider.isConfigured ? provider : null,
   );
-  return Response.json({ success: true, data: recommendation } satisfies CommuteRecommendationResult);
+  return Response.json({
+    success: true,
+    data: recommendation,
+  } satisfies CommuteRecommendationResult);
 }

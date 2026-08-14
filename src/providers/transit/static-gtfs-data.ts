@@ -199,7 +199,12 @@ export async function loadStaticGtfsIndex(
   for (const row of stopRows) {
     const latitude = Number.parseFloat(row.stop_lat);
     const longitude = Number.parseFloat(row.stop_lon);
-    if (!row.stop_id || !row.stop_name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (
+      !row.stop_id ||
+      !row.stop_name ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
       continue;
     }
     stops.set(row.stop_id, {
@@ -230,7 +235,8 @@ export async function loadStaticGtfsIndex(
     const arrivalSeconds = parseGtfsTime(row.arrival_time);
     const departureSeconds = parseGtfsTime(row.departure_time);
     const sequence = Number.parseInt(row.stop_sequence, 10);
-    if (arrivalSeconds === null || departureSeconds === null || !Number.isFinite(sequence)) continue;
+    if (arrivalSeconds === null || departureSeconds === null || !Number.isFinite(sequence))
+      continue;
     const stopTimes = stopTimesByTrip.get(row.trip_id) ?? [];
     stopTimes.push({ stopId: row.stop_id, arrivalSeconds, departureSeconds, sequence });
     stopTimesByTrip.set(row.trip_id, stopTimes);

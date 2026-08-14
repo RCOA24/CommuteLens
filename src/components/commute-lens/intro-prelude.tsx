@@ -32,11 +32,7 @@ export function IntroPrelude({
   return (
     <motion.section
       className="relative isolate min-h-[calc(100svh-8rem)] overflow-hidden rounded-[2rem] bg-ink px-6 py-8 text-paper shadow-[0_26px_80px_rgba(16,42,43,0.22)] sm:px-10 sm:py-12 lg:min-h-[660px] lg:px-14 lg:py-14"
-      exit={
-        reduceMotion
-          ? { opacity: 0 }
-          : { opacity: 0, scale: 1.12, filter: "blur(8px)" }
-      }
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.12, filter: "blur(8px)" }}
       transition={{
         duration: reduceMotion ? 0.08 : 0.46,
         ease: [0.22, 1, 0.36, 1],
@@ -51,9 +47,7 @@ export function IntroPrelude({
         className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(255,253,244,0.42)_1px,transparent_1px)] [background-size:24px_24px]"
       />
 
-      <div
-        className="relative grid min-h-[inherit] items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(390px,0.8fr)] lg:gap-16"
-      >
+      <div className="relative grid min-h-[inherit] items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(390px,0.8fr)] lg:gap-16">
         <div className="max-w-2xl py-4 lg:py-0">
           <motion.div {...reveal(0)}>
             <Eyebrow tone="mint">A clearer way to choose</Eyebrow>
@@ -143,9 +137,7 @@ export function IntroPrelude({
                   strokeLinecap="round"
                   className="text-ink/40"
                   initial={
-                    reduceMotion
-                      ? { pathLength: 1, opacity: 0.55 }
-                      : { pathLength: 0, opacity: 0 }
+                    reduceMotion ? { pathLength: 1, opacity: 0.55 } : { pathLength: 0, opacity: 0 }
                   }
                   animate={{ pathLength: 1, opacity: 0.55 }}
                   transition={{
@@ -156,12 +148,7 @@ export function IntroPrelude({
               </svg>
 
               <div className="relative grid min-h-31 grid-cols-3 items-end gap-3 text-center">
-                <RoutePoint
-                  label="Home"
-                  detail="Start"
-                  delay={0.45}
-                  reduceMotion={reduceMotion}
-                />
+                <RoutePoint label="Home" detail="Start" delay={0.45} reduceMotion={reduceMotion} />
                 <RoutePoint
                   label="Transit"
                   detail="Route found"
@@ -217,7 +204,9 @@ function RoutePoint({
       >
         {accent ? <Train className="size-4" /> : <MapPin className="size-4" />}
       </span>
-      <strong className="mt-2 text-[0.68rem] font-black tracking-[0.08em] uppercase">{label}</strong>
+      <strong className="mt-2 text-[0.68rem] font-black tracking-[0.08em] uppercase">
+        {label}
+      </strong>
       <span className="mt-0.5 text-[0.63rem] text-muted">{detail}</span>
     </motion.div>
   );

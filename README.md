@@ -33,6 +33,10 @@ This project is submitted to the **CUTC Transform Hackathon 2026**, with a focus
 - A real two-offer comparison with independent locations and work arrangements.
 - AI or deterministic explanations based only on validated calculated facts.
 - Visible Live, Estimated, or Curated Demo provenance.
+- Optional offer-letter reading: upload the offer as a PDF, Word file, or photo and the form is
+  prefilled with what the document states, each value shown next to the phrase it came from.
+- Optional commuter memory: a saved home area, fare entitlement, and working assumptions, plus a
+  running shortlist of analyzed offers instead of a two-at-a-time comparison.
 
 Commute Lens does not choose a job, calculate official payroll deductions, or claim official/current fares.
 
@@ -98,6 +102,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+Configure `BACKBOARD_API_KEY` to enable offer-letter reading and commuter memory. The key format is
+plain: `BACKBOARD_API_KEY=<key>` with no quotes and no spaces around the `=`. `BACKBOARD_MODEL`
+defaults to a cheap model on purpose, because the reader only transcribes fields. Set
+`BACKBOARD_MEMORY=off` to keep reading but disable persistence.
+
 For an offline rehearsal, set both provider selectors to `demo`. For live routing, configure `BUSMAPS_API_KEY`; otherwise the server starts with the public archival GTFS route-pattern provider and falls back to distance when that dataset has no coverage. Set `TRANSIT_PROVIDER=gtfs` to test only the open-data path, or `OPEN_GTFS_ENABLED=false` to disable it. `OPEN_GTFS_URL` can point to another licensed GTFS ZIP. Configure `GEOAPIFY_API_KEY` for server-side geocoding and the same-origin map-tile proxy. Never expose Geoapify, BusMaps, Mobility, or OpenAI keys through `NEXT_PUBLIC_` variables.
 
 ## API
@@ -108,14 +117,50 @@ For an offline rehearsal, set both provider selectors to `demo`. For live routin
 | `POST /api/commute/analyze`     | Analyze one offer, optionally reusing its route preview    |
 | `POST /api/commute/compare`     | Compare two independently configured offers                |
 | `POST /api/explain`             | Generate a guarded AI or deterministic explanation         |
+| `POST /api/offer-document/extract` | Read an uploaded offer letter into a reviewable draft   |
+| `POST /api/commuter-profile`    | Create, recall, update, extend, or delete commuter memory   |
 | `GET /api/geocode/search?q=...` | Explicit submitted place search                            |
 | `POST /api/geocode/reverse`     | Reverse-geocode browser coordinates without URL parameters |
 
 Expensive endpoints have a best-effort in-memory rate limit. A multi-instance production deployment should replace it with a shared rate-limit store.
 
+## Offer-letter reading and commuter memory
+
+Both features are additive and both are powered by [Backboard](https://docs.backboard.io). Without
+`BACKBOARD_API_KEY` the app behaves exactly as before: the offer form is typed by hand and the
+reading control reports that it is unavailable.
+
+**Reading is transcription, not analysis.** The document reader may only copy what a document states.
+It is explicitly forbidden to do arithmetic, so a stated annual salary is converted to a monthly
+figure by `applyExtractionGuardrails`, not by the model, and the conversion is shown to the user.
+Values outside plausible bounds are dropped rather than corrected, contradictory schedule fields are
+dropped as a pair, and document text is stripped of control characters before it reaches a prompt or
+the form. An extraction never reaches the analyzer directly: it prefills the form, and
+`analyzeJobOfferSchema` remains the authority. The uploaded file is held in memory only, and its
+Backboard thread is deleted as soon as the fields have been read.
+
+**Memory is structured and auditable.** A profile is stored as one versioned, machine-readable record
+and read back by parsing, never by semantic retrieval, because prefilling a form needs exact values.
+Coordinates are rounded to three decimals (roughly 100 m) and labels truncated before anything is
+written. Ledger entries are recalculated server-side from the analysis inputs, so a remembered
+shortlist cannot drift from the receipt it came from. The UI can show every stored record verbatim.
+
+Scoping is one Backboard assistant per anonymous commuter, and the assistant id is the handle held in
+the browser's local storage. Possession of the handle is the whole authorization model — there are no
+accounts — so handles are validated as UUIDs before they reach a provider URL, and deletion removes
+the assistant and its memories in a single call. `forget` reports whether the deletion actually
+succeeded instead of optimistically claiming it did.
+
 ## Privacy and security
 
-- Location is processed only for geocoding/routing and is not persisted by the app.
+- Location is processed only for geocoding/routing and is not persisted by the app, **except** for a
+  rounded home coordinate and label when the user explicitly asks to be remembered.
+- Commuter memory is opt-in, is never written until the user asks for it, and is deletable from the
+  UI. With `BACKBOARD_MEMORY=off`, or with no Backboard key, storage falls back to a process-local
+  store that reports itself as session-only rather than implying durability.
+- Uploaded offer documents are sent to Backboard for processing, are not written to disk by this app,
+  and their processing thread is deleted after extraction.
+- A production privacy notice must name Backboard as a processor for these two features.
 - Coordinates are sent to Geoapify and BusMaps when those providers are enabled.
 - Browser geolocation requires an explicit click and reports low-accuracy results.
 - Reverse-geocoding coordinates are sent in a POST body rather than a logged query string.
@@ -140,12 +185,18 @@ Unit and route-handler tests run without requiring live third-party calls.
 ## 60-second demo
 
 1. Search and select a real origin and office, then show the route-status badge.
-2. Enter an offer and explain the adjustable take-home assumption.
-3. Reveal cash after transport, effective hourly value, burden, and monthly commute hours.
-4. Move onsite days and state the marginal money/time impact.
-5. Compare a second real offer and show that cash and effective-hourly leaders may differ.
-6. Expand “How we calculated this” or request the guarded explanation.
+2. Drop in an offer letter, then point at the quotes: every prefilled field traces to a line in the
+   document, and the annual-to-monthly conversion was done by Commute Lens, not by the model.
+3. Enter an offer and explain the adjustable take-home assumption.
+4. Reveal cash after transport, effective hourly value, burden, and monthly commute hours.
+5. Move onsite days and state the marginal money/time impact.
+6. Compare a second real offer and show that cash and effective-hourly leaders may differ.
+7. Expand “How we calculated this” or request the guarded explanation.
+8. Save the setup and add the offer to the shortlist, then open “Exactly what is stored” and delete
+   it — the memory layer is auditable and reversible, not a black box.
 
 ## Current scope
 
-This hackathon build intentionally excludes accounts, persistence, full Philippine payroll computation, authoritative fare feeds, and trip booking. The next data milestone is validated agency-specific GTFS/fare ingestion with coverage matching—not more presentation features.
+This hackathon build intentionally excludes accounts, full Philippine payroll computation,
+authoritative fare feeds, and trip booking. Persistence exists only as the opt-in commuter memory
+described above, behind an anonymous browser-held handle rather than a login. The next data milestone is validated agency-specific GTFS/fare ingestion with coverage matching—not more presentation features.

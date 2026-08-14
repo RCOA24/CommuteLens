@@ -8,12 +8,7 @@ const peso = new Intl.NumberFormat("en-PH", {
 });
 
 export type CommuteGuideDegradedReason =
-  | "not-configured"
-  | "timeout"
-  | "upstream"
-  | "malformed"
-  | "guardrail"
-  | "no-verified-itinerary";
+  "not-configured" | "timeout" | "upstream" | "malformed" | "guardrail" | "no-verified-itinerary";
 
 export class CommuteGuideProviderError extends Error {
   constructor(
@@ -129,7 +124,9 @@ export function buildCommuteGuideFacts(route: CommuteRoute): CommuteGuideFacts {
   };
 }
 
-export function buildCommuteRouteOptionFacts(routes: readonly CommuteRoute[]): CommuteRouteOptionFacts[] {
+export function buildCommuteRouteOptionFacts(
+  routes: readonly CommuteRoute[],
+): CommuteRouteOptionFacts[] {
   return routes.map((route, index) => ({
     option: index + 1,
     totalDurationMinutes: Math.round(route.oneWayDurationMinutes),
@@ -141,7 +138,8 @@ export function buildCommuteRouteOptionFacts(routes: readonly CommuteRoute[]): C
 
 export function buildDeterministicCommuteGuide(facts: CommuteGuideFacts): string {
   const instructions = facts.steps.map((step, index) => {
-    const fare = step.estimatedFare > 0 ? `, estimated fare ${peso.format(step.estimatedFare)}` : "";
+    const fare =
+      step.estimatedFare > 0 ? `, estimated fare ${peso.format(step.estimatedFare)}` : "";
     return `Step ${index + 1}: ${modePhrase(step.mode)} from ${step.origin} to ${step.destination}, about ${step.estimatedDurationMinutes} minutes${fare}.`;
   });
 
@@ -210,7 +208,9 @@ function recommendedOption(options: CommuteRouteOptionFacts[]): CommuteRouteOpti
   )[0]!;
 }
 
-function deterministicRecommendation(options: CommuteRouteOptionFacts[]): CommuteRouteRecommendation {
+function deterministicRecommendation(
+  options: CommuteRouteOptionFacts[],
+): CommuteRouteRecommendation {
   const selected = recommendedOption(options);
   return {
     option: selected.option,

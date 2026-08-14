@@ -61,8 +61,8 @@ export function CommuteReadinessCard({
         <footer className="mt-4 flex items-start gap-2 border-t border-ink/10 pt-3 text-[0.68rem] leading-relaxed text-muted">
           <Info className="mt-0.5 size-3.5 shrink-0 text-flame" aria-hidden="true" />
           <span>
-            Readiness describes forecast conditions and the selected route&apos;s observed details. It
-            is not an arrival guarantee, a safety rating, or a flood prediction.
+            Readiness describes forecast conditions and the selected route&apos;s observed details.
+            It is not an arrival guarantee, a safety rating, or a flood prediction.
             {readiness.sources[0]
               ? ` Weather source: ${readiness.sources[0].name}, retrieved ${formatTimestamp(readiness.sources[0].retrievedAt)}.`
               : " Weather context is not currently available."}
@@ -114,7 +114,13 @@ function weatherIcon(visual: WeatherVisual) {
   return <CloudRain className="size-3.5 text-flame" aria-hidden="true" />;
 }
 
-function WeatherContext({ readiness, visual }: { readiness: CommuteReadiness; visual: WeatherVisual }) {
+function WeatherContext({
+  readiness,
+  visual,
+}: {
+  readiness: CommuteReadiness;
+  visual: WeatherVisual;
+}) {
   const weather = readiness.weather;
   if (weather.availability !== "available" || !weather.forecast) {
     return (

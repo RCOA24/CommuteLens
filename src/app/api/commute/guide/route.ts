@@ -18,7 +18,10 @@ export async function POST(request: Request): Promise<Response> {
     body = await request.json();
   } catch {
     return Response.json(
-      { success: false, error: { code: "INVALID_INPUT", message: "Request body must be valid JSON." } } satisfies CommuteGuideResult,
+      {
+        success: false,
+        error: { code: "INVALID_INPUT", message: "Request body must be valid JSON." },
+      } satisfies CommuteGuideResult,
       { status: 400 },
     );
   }
@@ -28,7 +31,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(
       {
         success: false,
-        error: { code: "INVALID_INPUT", message: parsed.error.issues[0]?.message ?? "Invalid route." },
+        error: {
+          code: "INVALID_INPUT",
+          message: parsed.error.issues[0]?.message ?? "Invalid route.",
+        },
       } satisfies CommuteGuideResult,
       { status: 400 },
     );

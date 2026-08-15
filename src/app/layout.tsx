@@ -26,6 +26,9 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Commute Lens",
   description: "Know what the job really costs.",
+  icons: {
+    icon: "/favicon/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

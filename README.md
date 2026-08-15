@@ -111,55 +111,6 @@ reachable **only** from an explicit “Wrap up” on either the result or the co
 starting over are different intentions, so they get different controls, and nothing is lost by
 finishing because the closing screen can return to the result.
 
-## Motion
-
-One animation library, one preference, one performance rule. The vocabulary lives in
-`src/lib/motion.ts` and is shared by every animated screen.
-
-**Springs, described the way a designer thinks.** Motion is spring-led after Apple's platform
-guidance, which treats springs as the default because they are interruptible and velocity-aware
-rather than replaying a fixed keyframe ([WWDC23, “Animate with springs”](https://developer.apple.com/videos/play/wwdc2023/10158/)).
-Springs are expressed as duration plus bounce — the pair SwiftUI exposes — so `SPRING_SMOOTH`,
-`SPRING_SNAPPY`, `SPRING_BOUNCY`, and `SPRING_CINEMATIC` read as intent instead of physics trivia.
-Every screen arrives with the same gesture and only the intensity varies; a journey where each step
-enters differently reads as a set of unrelated pages. Exactly one element per screen is allowed to
-overshoot, because a screen where everything bounces has no accent.
-
-**Only `opacity` and `transform` are animated. This is a hard rule.** Both are handled by the
-compositor, so the browser runs them without laying out or painting again. An earlier version also
-animated `filter: blur()`, which looked excellent on a desktop and made mid-range phones stutter: a
-blur cannot be composited, so every frame repaints the element and the backdrop behind it, and on a
-long page revealing sections mid-scroll that is the whole frame budget. `blur` is deliberately absent
-from `MaterializeOptions` so it cannot quietly return. For the same reason the sticky header's
-translucent `backdrop-filter` is desktop-only — on a sticky element it is re-evaluated every scroll
-frame — and small screens get an opaque bar that looks near-identical and costs nothing.
-
-**Long pages reveal on scroll.** `<Reveal>` animates a section the first time it enters the viewport
-and never again, so the result page assembles just ahead of the reader instead of finishing its
-animation off-screen before they arrive. Two exclusions matter: the receipt block is not wrapped,
-because `html-to-image` would capture an unrevealed section as blank; and a `@media print` rule
-forces opacity, filter, and transform back to normal with `!important`, because printing renders the
-whole document regardless of what has been scrolled to.
-
-**Animation is on by default, and that is a documented tradeoff.** `useMotionPreference` resolves an
-in-app choice over the OS setting and defaults to full motion, so the app does not follow
-`prefers-reduced-motion` unasked. That setting is switched on wholesale by battery savers and
-corporate machine images, which left visitors with a journey whose animation they could not see and
-did not know existed. This does not meet [Apple's Reduced Motion criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria/),
-and the mitigations are what keep it defensible: the off switch is in the header on every screen, the
-choice persists in local storage and syncs across tabs, `reduced` removes movement entirely rather
-than merely shortening it, and no information is conveyed by animation alone. Reverting to
-OS-following is a one-line change in `readPreference`, and is the right call for a wider audience.
-
-The resolved preference is published to `<html data-motion="full | reduced">` so CSS agrees with
-React; without it the global reduced-motion reset in `globals.css` would keep flattening transitions
-for someone who had asked for full motion. Reduced motion is passed down as a prop from a single
-subscription rather than each component reading the media query, so there is one authority. GSAP was
-removed once the closing screen moved to Motion — two libraries meant two independent reduced-motion
-authorities that could disagree, and they did.
-
-Content in this section was rephrased from Apple's developer documentation for compliance with
-licensing restrictions.
 
 ## Setup
 

@@ -1,6 +1,7 @@
 # CommuteLens
 
 > **CUTC Transform Hackathon 2026 submission**
+<img width="1672" height="941" alt="CommuteLens" src="https://github.com/user-attachments/assets/267e38de-5c53-42fe-8f23-50de4cb76273" />
 
 ## The problem: a salary is not the full value of a job
 

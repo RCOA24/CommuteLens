@@ -3,6 +3,9 @@
 > **CUTC Transform Hackathon 2026 submission**
 <img width="1672" height="941" alt="CommuteLens" src="https://github.com/user-attachments/assets/267e38de-5c53-42fe-8f23-50de4cb76273" />
 
+[![Watch the video](https://img.youtube.com/vi/f5NNQpqlPmI/maxresdefault.jpg)](https://youtu.be/f5NNQpqlPmI?si=_EveF6aXmwMej7ol)
+
+
 ## The problem: a salary is not the full value of a job
 
 For many Filipino workers, accepting a job is also a daily transportation decision. A higher salary can disappear into fares, fuel, parking, and ride-hailing costs. Long transfers and traffic can consume hours every week—time taken away from sleep, family, study, and personal recovery. Yet most job comparisons show only the monthly salary and hide the cost of getting to work.
